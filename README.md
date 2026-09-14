@@ -1,4 +1,4 @@
-# myCMS — Next.js + Node.js Rewrite
+# VeroXM — Next.js + Node.js Rewrite
 
 This is the new project folder for migrating `cms.node2cloud.com` (Laravel 8 + Vue 2) to a **Next.js frontend + NestJS/Prisma backend**, kept separate from the legacy repo so the two codebases never collide during the migration.
 
