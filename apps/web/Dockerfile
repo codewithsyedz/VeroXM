@@ -20,6 +20,7 @@ COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
+COPY packages/sdk-js/package.json packages/sdk-js/package.json
 
 RUN npm install --legacy-peer-deps
 

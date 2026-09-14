@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Check, Copy, Download, KeyRound, Plus, Trash2, X } from "lucide-react";
+import InlineAlert from "@/components/InlineAlert";
 import { issueApiToken, revokeApiToken, type DocCollection } from "./actions";
 import { buildPostmanCollection } from "@/lib/postman-collection";
 import { ABILITY_OPTIONS, abilityLabel, type Ability } from "@/lib/abilities";
@@ -314,6 +315,12 @@ export default function AccessTokens({
   const [issued, setIssued] = useState<{ name: string; plainTextToken: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  // A revoke is instant and irreversible -- anything still using this key
+  // stops working the moment it's confirmed -- so a bare click on the trash
+  // icon only arms a row-level confirmation instead of revoking directly;
+  // the actual revokeApiToken call only fires from the "Revoke key" button
+  // that appears once armed. Only one row confirms at a time.
+  const [confirmingRevokeId, setConfirmingRevokeId] = useState<number | null>(null);
 
   function handleIssued(token: { id: number; name: string; abilities: string[]; plainTextToken: string }) {
     setTokens((prev) => [
@@ -329,6 +336,7 @@ export default function AccessTokens({
       try {
         await revokeApiToken(projectId, id);
         setTokens((prev) => prev.filter((t) => t.id !== id));
+        setConfirmingRevokeId(null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to revoke key");
       }
@@ -337,37 +345,44 @@ export default function AccessTokens({
 
   return (
     <div className="flex flex-col gap-6">
-      <ConnectionInfo uuid={uuid} endpoint={endpoint} />
+      {/* Side by side above the lg breakpoint -- each card's own content is
+          naturally narrow (a couple of label/value rows; a short blurb and
+          a button), so letting either stretch alone to the full page width
+          just spreads that content out into empty space. Two columns use
+          the width the page actually gives this tab. */}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <ConnectionInfo uuid={uuid} endpoint={endpoint} />
 
-      <div className="surface-standard flex flex-wrap items-center justify-between gap-4 rounded-2xl p-6">
-        <div className="max-w-md">
-          <p className="eyebrow">Export</p>
-          <h2 className="mt-2 text-lg font-medium text-[#f2f3fb]">Postman collection</h2>
-          <p className="mt-2 text-sm leading-6 text-[#b8bfd8]">
-            Every v1 and v2 route for this project&apos;s real content models, grouped into GET /
-            POST / PATCH / DELETE folders, ready to import — includes a Login request (Auth
-            folder) that fills in the collection&apos;s
-            <span className="font-mono-code"> apiKey </span>
-            variable automatically if you&apos;ve set up a username/password credential on the
-            Authentication tab, or paste a static key into that variable yourself.
-          </p>
+        <div className="surface-standard flex h-full flex-col justify-between gap-4 rounded-2xl p-6">
+          <div>
+            <p className="eyebrow">Export</p>
+            <h2 className="mt-2 text-lg font-medium text-[#f2f3fb]">Postman collection</h2>
+            <p className="mt-2 text-sm leading-6 text-[#b8bfd8]">
+              Every v1 and v2 route for this project&apos;s real content models, grouped into GET /
+              POST / PATCH / DELETE folders, ready to import — includes a Login request (Auth
+              folder) that fills in the collection&apos;s
+              <span className="font-mono-code"> apiKey </span>
+              variable automatically if you&apos;ve set up a username/password credential on the
+              Authentication tab, or paste a static key into that variable yourself.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              downloadPostmanCollection({
+                projectName,
+                uuid,
+                endpointV1,
+                endpointV2: endpoint,
+                collections,
+              })
+            }
+            className="button-secondary w-fit px-4"
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+            Download Postman Collection
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            downloadPostmanCollection({
-              projectName,
-              uuid,
-              endpointV1,
-              endpointV2: endpoint,
-              collections,
-            })
-          }
-          className="button-secondary px-4"
-        >
-          <Download className="h-4 w-4" aria-hidden="true" />
-          Download Postman Collection
-        </button>
       </div>
 
       {issued && <IssuedTokenReveal token={issued} onDismiss={() => setIssued(null)} />}
@@ -381,39 +396,77 @@ export default function AccessTokens({
           <IssueTokenModal projectId={projectId} onIssued={handleIssued} />
         </div>
 
-        {error && <p className="mt-3 text-xs text-[#ea6d76]">{error}</p>}
+        {error && (
+          <div className="mt-3">
+            <InlineAlert tone="error" message={error} onDismiss={() => setError(null)} />
+          </div>
+        )}
 
         {tokens.length === 0 ? (
           <p className="mt-6 text-sm text-[#b8bfd8]">No API keys yet for this project.</p>
         ) : (
           <div className="mt-6 flex flex-col gap-3">
-            {tokens.map((token) => (
-              <div
-                key={token.id}
-                className="surface-inset flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <KeyRound className="h-4 w-4 text-[#7680a3]" aria-hidden="true" />
-                  <div>
-                    <p className="text-sm font-medium text-[#f2f3fb]">{token.name}</p>
-                    <p className="mt-0.5 text-[11px] text-[#7680a3]">
-                      Created {formatDate(token.createdAt)} · Last used {formatDate(token.lastUsedAt)} ·{" "}
-                      {abilityLabel(token.abilities)}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRevoke(token.id)}
-                  disabled={isPending}
-                  className="icon-button text-[#ea6d76] disabled:text-[#7680a3]"
-                  aria-label="Revoke key"
-                  title="Revoke"
+            {tokens.map((token) => {
+              const confirming = confirmingRevokeId === token.id;
+              return (
+                <div
+                  key={token.id}
+                  className="surface-inset flex flex-col gap-3 rounded-lg px-4 py-3"
                 >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <KeyRound className="h-4 w-4 text-[#7680a3]" aria-hidden="true" />
+                      <div>
+                        <p className="text-sm font-medium text-[#f2f3fb]">{token.name}</p>
+                        <p className="mt-0.5 text-[11px] text-[#7680a3]">
+                          Created {formatDate(token.createdAt)} · Last used {formatDate(token.lastUsedAt)} ·{" "}
+                          {abilityLabel(token.abilities)}
+                        </p>
+                      </div>
+                    </div>
+                    {!confirming && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingRevokeId(token.id)}
+                        disabled={isPending}
+                        className="icon-button text-[#ea6d76] disabled:text-[#7680a3]"
+                        aria-label={`Revoke ${token.name}`}
+                        title="Revoke"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {confirming && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[rgba(234,109,118,0.35)] bg-[rgba(234,109,118,0.08)] px-3 py-2.5">
+                      <p className="text-xs text-[#ea6d76]">
+                        Revoke <span className="font-medium">{token.name}</span>? Anything using
+                        this key will stop working immediately.
+                      </p>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingRevokeId(null)}
+                          disabled={isPending}
+                          className="button-secondary px-3 text-xs"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRevoke(token.id)}
+                          disabled={isPending}
+                          className="inline-flex h-8 items-center rounded-lg bg-[#ea6d76] px-3 text-xs font-medium text-white transition-colors hover:bg-[#d85c66] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isPending ? "Revoking…" : "Revoke key"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

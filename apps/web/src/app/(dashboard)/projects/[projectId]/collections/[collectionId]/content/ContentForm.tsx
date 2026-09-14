@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Image as ImageIcon, Info, X } from "lucide-react";
+import InlineAlert from "@/components/InlineAlert";
 import { searchMedia, searchRelationContent, type MediaItem, type RelationCandidate } from "./actions";
 
 export interface FieldSchema {
@@ -657,9 +658,11 @@ export default function ContentForm({
   });
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   function submit() {
     setError(null);
+    setSaved(false);
 
     // json fields are edited as raw text in the textarea — parse back to a
     // real value before sending, same shape the API expects to re-encode.
@@ -678,6 +681,9 @@ export default function ContentForm({
     startTransition(async () => {
       try {
         await onSubmit({ locale: locale || undefined, published, data: payloadData });
+        // Only reached for an in-place update -- the create path's onSubmit
+        // redirects (see .../content/new/page.tsx) before returning here.
+        setSaved(true);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save content");
       }
@@ -744,7 +750,15 @@ export default function ContentForm({
           {isPending ? "Saving…" : submitLabel}
         </button>
       </div>
-      {error && <p className="whitespace-pre-wrap text-xs text-[#ea6d76]">{error}</p>}
+      {saved && (
+        <InlineAlert
+          tone="success"
+          message="Entry saved."
+          onDismiss={() => setSaved(false)}
+          autoDismissMs={4000}
+        />
+      )}
+      {error && <InlineAlert tone="error" message={error} onDismiss={() => setError(null)} />}
     </div>
   );
 }

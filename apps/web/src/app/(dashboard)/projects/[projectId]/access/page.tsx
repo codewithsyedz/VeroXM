@@ -149,11 +149,17 @@ export default async function ProjectAccessPage({
         </div>
       </header>
 
-      <div className="mt-8 max-w-3xl">
+      <div className="mt-8">
         <DeveloperTabs projectId={projectId} active={activeTab} />
       </div>
 
-      <div className="mt-6 max-w-3xl">
+      {/* No max-w cap here (previously max-w-3xl, ~768px) -- .container
+          already tops out at --db-content-max (1440px), same as every
+          other dashboard page. The extra cap left a large empty gutter on
+          anything wider than a laptop, most visible on this tab (a list of
+          full-width cards with nothing else to fill the row) but applying
+          equally to Analytics/Explorer/Docs, which want the room. */}
+      <div className="mt-6">
         {activeTab === "keys" && (
           <AccessTokens
             projectId={projectId}

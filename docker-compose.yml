@@ -98,6 +98,38 @@ services:
     networks:
       - internal
 
+  # Same app/image as `web` above -- a second container dedicated to the
+  # public (marketing) route group, reached on its own local domain
+  # (http://veroxm.local:8080, see docker/nginx/gateway.conf's second
+  # server{} block) instead of localhost:8080, so it can move to a real
+  # separate domain in production (e.g. veroxm.com vs. app.veroxm.com)
+  # without code changes -- just a different NEXTAUTH_URL/gateway rule.
+  # NOT a code fork: same source tree, same Dockerfile, same
+  # web_node_modules volume. The one thing that MUST differ is
+  # NEXT_DIST_DIR (see next.config.ts) -- both containers bind-mount the
+  # same host source tree, so without separate build-output directories
+  # two concurrent `next dev` processes would corrupt each other's
+  # ./.next cache.
+  web-marketing:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    env_file:
+      - ./apps/web/.env
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
+      API_URL: http://api:4000
+      NEXTAUTH_URL: http://veroxm.local:8080
+      NEXT_DIST_DIR: .next-marketing
+    volumes:
+      - .:/app
+      - web_node_modules:/app/node_modules
+    networks:
+      - internal
+
   # --- Slice 1 (docs/IDENTITY-PLATFORM-RECOMMENDATION.md §7) ---
   # Keycloak's own store. Deliberately a separate Postgres instance with NO
   # connection to `db` (the real MySQL app data) at all — that isolation is
@@ -154,6 +186,7 @@ services:
     depends_on:
       - api
       - web
+      - web-marketing
     ports:
       - "8080:80"
     volumes:

@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { formatRelative, pluralize } from "@/lib/format";
 import { ArrowRight, Boxes, FileText, FolderOpen, Image as ImageIcon, KeyRound, Layers, Search } from "lucide-react";
 import { LayoutTemplate } from "lucide-react";
+import FlashBanner from "@/components/FlashBanner";
 import CreateProjectPanel from "./CreateProjectPanel";
 import EditProjectModal from "./EditProjectModal";
 import ProjectStatusBadge from "./ProjectStatusBadge";
@@ -210,6 +211,8 @@ export default async function ProjectsPage({
         <CreateProjectPanel />
       </div>
 
+      <FlashBanner />
+
       <form method="get" action="/projects" className="mt-8 flex max-w-md items-center gap-2">
         {status !== "all" && <input type="hidden" name="status" value={status} />}
         <label className="relative flex-1">
@@ -370,17 +373,12 @@ export default async function ProjectsPage({
 
                     <ProjectMetaGrid project={project} />
 
-                    <div className="mt-6 flex items-center justify-between gap-3 border-t border-white/[0.07] pt-4">
-                      <span className="font-mono-code text-[11px] text-[#7680a3]">
+                    <div className="mt-6 flex flex-col gap-1 border-t border-white/[0.07] pt-4 font-mono-code text-[11px] text-[#7680a3]">
+                      <span>
                         {pluralize(project.collectionCount, "collection")} ·{" "}
                         {pluralize(project.contentCount, "entry", "entries")}
                       </span>
-                      <span
-                        className="font-mono-code text-[11px] text-[#7680a3]"
-                        title={project.uuid}
-                      >
-                        {project.uuid.slice(0, 8)}
-                      </span>
+                      <span>Updated {formatRelative(project.updatedAt ?? project.createdAt)}</span>
                     </div>
 
                     <ProjectLinks projectId={project.id} />

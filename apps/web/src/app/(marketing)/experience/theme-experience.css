@@ -1,0 +1,134 @@
+/* ---------------------------------------------------------------------
+ * "Experience" theme -- a close rebuild of the dark/violet reference
+ * screenshot ("Experience management for real impact."). Same --db-*
+ * custom-property / utility-class naming convention as .dashboard-theme
+ * and .theme-impact, so DemoRequestForm/NewsletterForm keep working
+ * unmodified -- only the token VALUES change here.
+ * ------------------------------------------------------------------- */
+.theme-experience {
+  --db-background: #0a0714;
+  --db-foreground: #f3f0fb;
+  --db-surface-1: rgba(30, 20, 55, 0.55);
+  --db-surface-inset: #150f24;
+  --db-hairline: rgba(224, 214, 255, 0.14);
+  --db-hairline-quiet: rgba(224, 214, 255, 0.08);
+  --db-sapphire: #a680ff;
+  --db-sapphire-soft: #c9a8ff;
+  --db-ink: #f3f0fb;
+  --db-ink-muted: #b6a9d6;
+  --db-ink-quiet: #7d6f9c;
+  --db-content-max: 1440px;
+  --db-gutter-desktop: clamp(28px, 4vw, 72px);
+  --db-gutter-mobile: 20px;
+  --db-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  min-height: 100%;
+  background:
+    radial-gradient(60% 45% at 82% -5%, rgba(166, 128, 255, 0.22), transparent 60%),
+    radial-gradient(45% 35% at 8% 10%, rgba(120, 80, 220, 0.16), transparent 65%),
+    var(--db-background);
+  color: var(--db-foreground);
+  font-family: var(--font-manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  letter-spacing: -0.01em;
+}
+
+.theme-experience button, .theme-experience input, .theme-experience textarea, .theme-experience select { font: inherit; }
+.theme-experience button:focus-visible, .theme-experience a:focus-visible, .theme-experience input:focus-visible, .theme-experience textarea:focus-visible {
+  outline: 2px solid var(--db-sapphire-soft);
+  outline-offset: 3px;
+}
+
+.theme-experience .container { width: 100%; max-width: var(--db-content-max); margin-inline: auto; padding-inline: var(--db-gutter-mobile); }
+@media (min-width: 768px) { .theme-experience .container { padding-inline: var(--db-gutter-desktop); } }
+
+.theme-experience .surface-feature {
+  background: linear-gradient(150deg, rgba(60, 40, 110, 0.55), rgba(10, 7, 20, 0.85));
+  border: 1px solid var(--db-hairline);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.theme-experience .surface-standard { background: var(--db-surface-1); border: 1px solid var(--db-hairline-quiet); }
+.theme-experience .surface-inset { background: var(--db-surface-inset); border: 1px solid var(--db-hairline-quiet); }
+.theme-experience .motion-interactive { transition: transform 180ms var(--db-ease-out), background-color 180ms ease, border-color 180ms ease, color 140ms ease, box-shadow 180ms ease; }
+.theme-experience .motion-interactive:active { transform: scale(0.98); }
+.theme-experience .eyebrow { font-family: var(--font-jetbrains-mono, monospace); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.14em; line-height: 1.4; text-transform: uppercase; color: var(--db-sapphire-soft); }
+.theme-experience .input-quiet { width: 100%; border: 1px solid var(--db-hairline); border-radius: 0.625rem; background: var(--db-surface-inset); color: var(--db-ink); transition: border-color 160ms ease, box-shadow 160ms ease; }
+.theme-experience .input-quiet::placeholder { color: var(--db-ink-quiet); }
+.theme-experience .input-quiet:focus { border-color: var(--db-sapphire-soft); box-shadow: 0 0 0 3px rgba(166, 128, 255, 0.18); outline: none; }
+.theme-experience .button-primary { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border: 1px solid transparent; border-radius: 999px; background: linear-gradient(120deg, #a680ff, #6f4de0); color: #100a1e; color: #ffffff; box-shadow: 0 10px 26px rgba(111, 77, 224, 0.4); font-size: 0.875rem; font-weight: 700; transition: transform 160ms var(--db-ease-out), box-shadow 160ms ease; }
+.theme-experience .button-primary:hover { box-shadow: 0 14px 32px rgba(111, 77, 224, 0.52); }
+.theme-experience .button-primary:active { transform: scale(0.98); }
+.theme-experience .button-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.theme-experience .button-secondary { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border: 1px solid var(--db-hairline); border-radius: 999px; background: rgba(255,255,255,0.03); color: var(--db-ink-muted); font-size: 0.875rem; font-weight: 600; transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease; }
+.theme-experience .button-secondary:hover { background: rgba(255,255,255,0.06); color: var(--db-ink); border-color: var(--db-hairline); }
+.theme-experience .icon-button { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 0.5rem; color: var(--db-ink-muted); transition: background-color 150ms ease, color 150ms ease; }
+.theme-experience .icon-button:hover { background: rgba(255,255,255,0.06); color: var(--db-ink); }
+
+.theme-experience .exp-section { padding-block: clamp(56px, 8vw, 104px); }
+.theme-experience .exp-section-alt { background: rgba(255,255,255,0.02); border-block: 1px solid var(--db-hairline-quiet); }
+.theme-experience .exp-heading { margin-top: 0.75rem; font-size: clamp(1.75rem, 3vw, 2.5rem); font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; color: var(--db-ink); }
+.theme-experience .exp-subheading { margin-top: 0.9rem; max-width: 640px; font-size: 1.0625rem; line-height: 1.6; color: var(--db-ink-muted); }
+.theme-experience .exp-emphasis { background: linear-gradient(120deg, #c9a8ff, #7fb2ff); -webkit-background-clip: text; background-clip: text; color: transparent; font-style: italic; }
+
+.theme-experience .exp-nav {
+  position: sticky; top: 0; z-index: 40;
+  background: rgba(10, 7, 20, 0.72);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--db-hairline-quiet);
+}
+.theme-experience .exp-nav-link { font-size: 0.875rem; font-weight: 600; color: var(--db-ink-muted); transition: color 150ms ease; }
+.theme-experience .exp-nav-link:hover { color: var(--db-ink); }
+
+.theme-experience .exp-hero {
+  position: relative;
+  overflow: hidden;
+  padding-block: clamp(64px, 10vw, 140px) clamp(40px, 6vw, 72px);
+}
+.theme-experience .exp-hero-heading { font-size: clamp(2.25rem, 5vw, 4.25rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; color: var(--db-ink); }
+
+.theme-experience .exp-quote-card { border-radius: 1.25rem; overflow: hidden; }
+.theme-experience .exp-quote-photo { aspect-ratio: 4/3; background: linear-gradient(150deg, #2a1d4d, #120b22); position: relative; }
+
+.theme-experience .exp-capability-icon { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 0.75rem; background: rgba(166, 128, 255, 0.14); color: var(--db-sapphire-soft); }
+
+.theme-experience .exp-stat-value { font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: 800; color: var(--db-ink); letter-spacing: -0.02em; }
+.theme-experience .exp-stat-label { margin-top: 0.35rem; font-size: 0.85rem; color: var(--db-ink-muted); }
+
+.theme-experience .exp-industry-card {
+  position: relative;
+  border-radius: 1.1rem;
+  overflow: hidden;
+  aspect-ratio: 4/3;
+  background: linear-gradient(160deg, #2a1d4d, #0f0a1c);
+  border: 1px solid var(--db-hairline-quiet);
+}
+.theme-experience .exp-industry-card-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 1.1rem;
+  background: linear-gradient(to top, rgba(6,4,12,0.92), rgba(6,4,12,0.15) 60%);
+}
+
+.theme-experience .exp-cta {
+  position: relative;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  padding: clamp(2.75rem, 7vw, 5rem);
+  text-align: center;
+  background: linear-gradient(150deg, #1c1236, #0a0714 70%);
+}
+.theme-experience .exp-cta::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(60% 80% at 50% 120%, rgba(166,128,255,0.35), transparent 70%);
+  animation: exp-wave-drift 12s ease-in-out infinite alternate;
+}
+@keyframes exp-wave-drift {
+  from { transform: translateY(0) scale(1); opacity: 0.8; }
+  to { transform: translateY(-14px) scale(1.06); opacity: 1; }
+}
+.theme-experience .exp-cta > * { position: relative; z-index: 1; }
+
+.theme-experience .exp-footer { background: #07050f; border-top: 1px solid var(--db-hairline-quiet); }
+.theme-experience .exp-footer-heading { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--db-ink); }
+.theme-experience .exp-footer-link { font-size: 0.875rem; color: var(--db-ink-muted); transition: color 150ms ease; }
+.theme-experience .exp-footer-link:hover { color: var(--db-ink); }

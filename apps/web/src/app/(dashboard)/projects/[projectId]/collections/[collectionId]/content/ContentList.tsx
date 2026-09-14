@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Clock, Eye, EyeOff, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
+import InlineAlert from "@/components/InlineAlert";
 import {
   deleteContent,
   publishContent,
@@ -216,6 +218,24 @@ export default function ContentList({
   search: string;
 }) {
   const [searchInput, setSearchInput] = useState(search);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const justCreated = searchParams.get("created") === "1";
+  const [showCreatedAlert, setShowCreatedAlert] = useState(justCreated);
+
+  // Strip ?created=1 from the URL once we've picked it up, so a later
+  // refresh or share of this link doesn't re-show the banner.
+  useEffect(() => {
+    if (!justCreated) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("created");
+    const qs = params.toString();
+    router.replace(
+      `/projects/${projectId}/collections/${collectionId}/content${qs ? `?${qs}` : ""}`,
+      { scroll: false },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [justCreated]);
 
   function buildUrl(next: { status?: StatusFilter; search?: string; page?: number }) {
     const params = new URLSearchParams();
@@ -245,6 +265,14 @@ export default function ContentList({
 
   return (
     <div className="flex flex-col gap-5">
+      {showCreatedAlert && (
+        <InlineAlert
+          tone="success"
+          message="Entry created."
+          onDismiss={() => setShowCreatedAlert(false)}
+          autoDismissMs={4000}
+        />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <form
           onSubmit={(e) => {

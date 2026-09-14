@@ -17,7 +17,8 @@
     "jsonwebtoken": "^9.0.2",
     "@mycms/db": "*",
     "@mycms/shared-types": "*",
-    "lucide-react": "^0.453.0"
+    "lucide-react": "^0.453.0",
+    "@veroxm/sdk": "*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

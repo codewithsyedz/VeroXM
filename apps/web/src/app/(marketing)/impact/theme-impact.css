@@ -1,0 +1,138 @@
+/* ---------------------------------------------------------------------
+ * "Impact" theme -- a close rebuild of the light/blue reference
+ * screenshot ("Turn experiences into real-world impact."). Reuses the
+ * exact same --db-* custom-property names and utility class names
+ * (.container, .button-primary, .surface-feature, .input-quiet, etc.)
+ * that globals.css defines under .dashboard-theme, so shared components
+ * like DemoRequestForm/NewsletterForm keep working unmodified -- only
+ * the token VALUES change here, scoped under .theme-impact.
+ * ------------------------------------------------------------------- */
+.theme-impact {
+  --db-background: #f6f8fc;
+  --db-foreground: #0f1a2e;
+  --db-surface-1: #ffffff;
+  --db-surface-inset: #eef2f9;
+  --db-hairline: rgba(15, 26, 46, 0.10);
+  --db-hairline-quiet: rgba(15, 26, 46, 0.06);
+  --db-sapphire: #2f6fed;
+  --db-sapphire-soft: #2f6fed;
+  --db-ink: #0f1a2e;
+  --db-ink-muted: #55617a;
+  --db-ink-quiet: #8a93a8;
+  --db-content-max: 1440px;
+  --db-gutter-desktop: clamp(28px, 4vw, 72px);
+  --db-gutter-mobile: 20px;
+  --db-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  min-height: 100%;
+  background: var(--db-background);
+  color: var(--db-foreground);
+  font-family: var(--font-manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  letter-spacing: -0.01em;
+}
+
+.theme-impact button, .theme-impact input, .theme-impact textarea, .theme-impact select { font: inherit; }
+.theme-impact button:focus-visible, .theme-impact a:focus-visible, .theme-impact input:focus-visible, .theme-impact textarea:focus-visible {
+  outline: 2px solid var(--db-sapphire-soft);
+  outline-offset: 3px;
+}
+
+.theme-impact .container { width: 100%; max-width: var(--db-content-max); margin-inline: auto; padding-inline: var(--db-gutter-mobile); }
+@media (min-width: 768px) { .theme-impact .container { padding-inline: var(--db-gutter-desktop); } }
+
+.theme-impact .surface-feature {
+  background: #ffffff;
+  border: 1px solid var(--db-hairline);
+  box-shadow: 0 24px 60px rgba(15, 26, 46, 0.08);
+}
+.theme-impact .surface-standard { background: var(--db-surface-1); border: 1px solid var(--db-hairline); }
+.theme-impact .surface-inset { background: var(--db-surface-inset); border: 1px solid var(--db-hairline); }
+.theme-impact .motion-interactive { transition: transform 180ms var(--db-ease-out), background-color 180ms ease, border-color 180ms ease, color 140ms ease, box-shadow 180ms ease; }
+.theme-impact .motion-interactive:active { transform: scale(0.98); }
+.theme-impact .eyebrow { font-family: var(--font-jetbrains-mono, monospace); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.10em; line-height: 1.4; text-transform: uppercase; color: var(--db-sapphire); }
+.theme-impact .input-quiet { width: 100%; border: 1px solid var(--db-hairline); border-radius: 0.625rem; background: #ffffff; color: var(--db-ink); transition: border-color 160ms ease, box-shadow 160ms ease; }
+.theme-impact .input-quiet::placeholder { color: var(--db-ink-quiet); }
+.theme-impact .input-quiet:focus { border-color: var(--db-sapphire); box-shadow: 0 0 0 3px rgba(47, 111, 237, 0.14); outline: none; }
+.theme-impact .button-primary { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border: 1px solid transparent; border-radius: 0.625rem; background: #2f6fed; color: #ffffff; box-shadow: 0 10px 24px rgba(47, 111, 237, 0.28); font-size: 0.875rem; font-weight: 700; transition: transform 160ms var(--db-ease-out), background-color 160ms ease, box-shadow 160ms ease; }
+.theme-impact .button-primary:hover { background: #1f5adb; box-shadow: 0 12px 28px rgba(47, 111, 237, 0.36); }
+.theme-impact .button-primary:active { transform: scale(0.98); }
+.theme-impact .button-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.theme-impact .button-secondary { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border: 1px solid var(--db-hairline); border-radius: 0.625rem; background: #ffffff; color: var(--db-ink); font-size: 0.875rem; font-weight: 600; transition: transform 160ms var(--db-ease-out), background-color 160ms ease, border-color 160ms ease; }
+.theme-impact .button-secondary:hover { background: var(--db-surface-inset); border-color: rgba(15, 26, 46, 0.18); }
+.theme-impact .button-secondary:active { transform: scale(0.98); }
+.theme-impact .icon-button { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 0.5rem; color: var(--db-ink-muted); transition: background-color 150ms ease, color 150ms ease; }
+.theme-impact .icon-button:hover { background: var(--db-surface-inset); color: var(--db-ink); }
+
+.theme-impact .imp-section { padding-block: clamp(56px, 8vw, 104px); }
+.theme-impact .imp-section-alt { background: #ffffff; border-block: 1px solid var(--db-hairline-quiet); }
+.theme-impact .imp-heading { margin-top: 0.75rem; font-size: clamp(1.75rem, 3vw, 2.5rem); font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; color: var(--db-ink); }
+.theme-impact .imp-subheading { margin-top: 0.9rem; max-width: 640px; font-size: 1.0625rem; line-height: 1.6; color: var(--db-ink-muted); }
+.theme-impact .imp-badge { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+.theme-impact .imp-nav {
+  position: sticky; top: 0; z-index: 40;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--db-hairline-quiet);
+}
+.theme-impact .imp-nav-link { font-size: 0.875rem; font-weight: 600; color: var(--db-ink-muted); transition: color 150ms ease; }
+.theme-impact .imp-nav-link:hover { color: var(--db-ink); }
+
+.theme-impact .imp-hero {
+  position: relative;
+  overflow: hidden;
+  padding-block: clamp(56px, 9vw, 120px) clamp(40px, 6vw, 72px);
+  background:
+    radial-gradient(60% 50% at 85% 0%, rgba(47, 111, 237, 0.14), transparent 70%),
+    radial-gradient(50% 40% at 10% 10%, rgba(47, 111, 237, 0.08), transparent 70%);
+}
+.theme-impact .imp-hero-heading { font-size: clamp(2.25rem, 5vw, 4rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; color: var(--db-ink); }
+.theme-impact .imp-mockup {
+  border-radius: 1.25rem;
+  border: 1px solid var(--db-hairline);
+  background: linear-gradient(160deg, #0f1a2e, #16264a);
+  box-shadow: 0 40px 90px rgba(15, 26, 46, 0.22);
+  overflow: hidden;
+  position: relative;
+}
+.theme-impact .imp-publish-card {
+  position: absolute;
+  left: -28px;
+  bottom: -22px;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 0.9rem;
+  background: #ffffff;
+  border: 1px solid var(--db-hairline);
+  box-shadow: 0 20px 44px rgba(15, 26, 46, 0.18);
+  padding: 0.85rem 1.1rem;
+}
+@media (max-width: 640px) { .theme-impact .imp-publish-card { left: 12px; bottom: -18px; } }
+
+.theme-impact .imp-logo-strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: clamp(1.5rem, 4vw, 3.5rem); opacity: 0.72; }
+.theme-impact .imp-logo-chip { font-weight: 700; font-size: 0.95rem; color: var(--db-ink-muted); letter-spacing: -0.01em; }
+
+.theme-impact .imp-feature-card { border-radius: 1rem; padding: 1.75rem; }
+.theme-impact .imp-feature-icon { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 0.75rem; background: rgba(47, 111, 237, 0.10); color: #2f6fed; }
+
+.theme-impact .imp-stat-value { font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: 800; color: var(--db-ink); letter-spacing: -0.02em; }
+.theme-impact .imp-stat-label { margin-top: 0.35rem; font-size: 0.85rem; color: var(--db-ink-muted); }
+
+.theme-impact .imp-case-study { border-radius: 1.5rem; overflow: hidden; }
+.theme-impact .imp-case-study-media { position: relative; aspect-ratio: 16/10; background: linear-gradient(150deg, #0f1a2e, #1c3363); display: flex; align-items: center; justify-content: center; }
+
+.theme-impact .imp-cta {
+  border-radius: 1.5rem;
+  padding: clamp(2.5rem, 6vw, 4.5rem);
+  background: linear-gradient(150deg, #0f1a2e, #16264a);
+  color: #f4f7ff;
+  text-align: center;
+}
+.theme-impact .imp-cta .imp-heading { color: #f4f7ff; }
+.theme-impact .imp-cta .imp-subheading { color: rgba(244, 247, 255, 0.72); margin-inline: auto; }
+
+.theme-impact .imp-footer { background: #ffffff; border-top: 1px solid var(--db-hairline-quiet); }
+.theme-impact .imp-footer-heading { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--db-ink); }
+.theme-impact .imp-footer-link { font-size: 0.875rem; color: var(--db-ink-muted); transition: color 150ms ease; }
+.theme-impact .imp-footer-link:hover { color: var(--db-ink); }

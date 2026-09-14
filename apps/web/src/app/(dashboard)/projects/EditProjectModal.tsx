@@ -3,6 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { KeyRound, Pencil, Trash2, X } from "lucide-react";
+import InlineAlert from "@/components/InlineAlert";
+import { emitFlash } from "@/components/FlashBanner";
 import { deleteProject, updateProject } from "./actions";
 
 interface EditableProject {
@@ -65,6 +67,15 @@ export default function EditProjectModal({ project }: { project: EditableProject
     startTransition(async () => {
       try {
         await updateProject(project.id, { name, description, status });
+        // Closing (rather than lingering open with a banner in here) is
+        // deliberate: a successful save bumps the project's updated_at,
+        // which can promote it into -- or out of -- the "most recently
+        // updated" featured slot once the page revalidates, remounting
+        // this exact modal instance into a different spot in the tree and
+        // losing any local "saved" state before the user would ever see
+        // it. The confirmation lives at the page level instead (see
+        // FlashBanner / emitFlash), where it isn't affected by that.
+        emitFlash("success", `“${name}” updated.`);
         setOpen(false);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save changes");
@@ -253,7 +264,11 @@ export default function EditProjectModal({ project }: { project: EditableProject
               </button>
             </div>
 
-            {error && <p className="mt-3 text-xs text-[#ea6d76]">{error}</p>}
+            {error && (
+              <div className="mt-3">
+                <InlineAlert tone="error" message={error} onDismiss={() => setError(null)} />
+              </div>
+            )}
           </div>
         </div>
       )}

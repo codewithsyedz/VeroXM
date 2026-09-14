@@ -25,6 +25,7 @@ COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
+COPY packages/sdk-js/package.json packages/sdk-js/package.json
 
 # --legacy-peer-deps: required by an npm/arborist bug from NestJS's vitest
 # peer deps (see README.md) — not Docker-specific, same flag used on the host.

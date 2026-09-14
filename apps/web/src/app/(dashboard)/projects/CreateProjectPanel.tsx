@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Plus, X } from "lucide-react";
+import InlineAlert from "@/components/InlineAlert";
 import { createProject } from "./actions";
 
 // Same slugify()/"touched" convention CollectionsList.tsx already uses for
@@ -29,6 +30,7 @@ export default function CreateProjectPanel() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -44,10 +46,12 @@ export default function CreateProjectPanel() {
     setForm(EMPTY);
     setSlugTouched(false);
     setError(null);
+    setSaved(false);
   }
 
   function submit() {
     setError(null);
+    setSaved(false);
     startTransition(async () => {
       try {
         // defaultLocale and status aren't asked here — they default to
@@ -58,7 +62,10 @@ export default function CreateProjectPanel() {
           slug: form.slug || slugify(form.name),
           description: form.description,
         });
-        close();
+        // Stay open with a confirmation rather than closing immediately —
+        // the new project already appears in the list behind this modal
+        // (revalidatePath), so there's no reason to rush the user out.
+        setSaved(true);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to create project");
       }
@@ -163,7 +170,21 @@ export default function CreateProjectPanel() {
               </button>
             </div>
 
-            {error && <p className="mt-3 text-xs text-[#ea6d76]">{error}</p>}
+            {saved && (
+              <div className="mt-3">
+                <InlineAlert
+                  tone="success"
+                  message={`“${form.name}” created.`}
+                  onDismiss={() => setSaved(false)}
+                  autoDismissMs={4000}
+                />
+              </div>
+            )}
+            {error && (
+              <div className="mt-3">
+                <InlineAlert tone="error" message={error} onDismiss={() => setError(null)} />
+              </div>
+            )}
           </div>
         </div>
       )}

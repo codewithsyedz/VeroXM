@@ -104,7 +104,11 @@ export async function createContent(
     body: JSON.stringify(form),
   });
   revalidatePath(basePath(projectId, collectionId));
-  redirect(basePath(projectId, collectionId));
+  // ?created=1 -- so the list page can show the same inline "saved"
+  // confirmation an in-place update gets in ContentForm itself; this redirect
+  // is the only route back to the list on success, so the flag has to ride
+  // along in the URL rather than in component state.
+  redirect(`${basePath(projectId, collectionId)}?created=1`);
 }
 
 export async function updateContent(

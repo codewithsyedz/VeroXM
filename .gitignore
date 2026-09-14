@@ -1,5 +1,6 @@
 node_modules/
 .next/
+.next-marketing/
 dist/
 .env
 .env.local
