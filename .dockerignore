@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+.git
+**/.next
+**/dist
+**/.turbo
+*.log
+.DS_Store
+docs
+infra
+docker/mysql/init/*.sql
+docker/mysql/init/*.sql.gz

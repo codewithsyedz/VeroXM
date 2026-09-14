@@ -1,0 +1,19 @@
+{
+  "name": "@mycms/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "generate": "prisma generate",
+    "pull": "prisma db pull",
+    "studio": "prisma studio",
+    "migrate:dev": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.0.0"
+  }
+}

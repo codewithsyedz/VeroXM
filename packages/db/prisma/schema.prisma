@@ -1,0 +1,494 @@
+// Introspected/ported from the legacy Laravel MySQL schema.
+// Phase 0: schema only. Point DATABASE_URL at a copy of the prod DB and run
+// `npm run db:pull` to verify this matches exactly before any writes happen.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int       @id @default(autoincrement())
+  name              String
+  email             String    @unique
+  emailVerifiedAt   DateTime? @map("email_verified_at")
+  password          String
+  rememberToken     String?   @map("remember_token")
+  createdAt         DateTime? @default(now()) @map("created_at")
+  updatedAt         DateTime? @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+// docs/RBAC-TENANT-RECOMMENDATION.md §3.1: the customer/account boundary
+// above Department. Additive and nullable on Department, same discipline
+// as Department -> Project below: no existing Department row is
+// backfilled by this change except the single Slice 1 test Department,
+// linked by docker/keycloak/seed-slice1-tenant-link.sql, not by this
+// migration itself.
+model Tenant {
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String    @unique
+  createdAt   DateTime? @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+
+  departments Department[]
+
+  @@map("tenants")
+}
+
+// Slice 1 (docs/IDENTITY-PLATFORM-RECOMMENDATION.md §7): the local mirror
+// of a Keycloak Organization. Additive only — every existing real Project
+// row keeps departmentId = NULL until the (separate, not-yet-run) backfill
+// in §4 step 5; nothing here changes any existing query or behavior.
+model Department {
+  id            Int       @id @default(autoincrement())
+  name          String
+  slug          String    @unique
+  // The Keycloak Organization's id/alias this Department mirrors. Nullable
+  // and unique-when-present — a Department can exist here before (or
+  // without) a matching Keycloak Organization during this proof-of-concept.
+  keycloakOrgId String?   @unique @map("keycloak_org_id")
+  // docs/RBAC-TENANT-RECOMMENDATION.md §3.1: nullable and additive, same
+  // pattern as Project.departmentId — no existing Department row is
+  // backfilled by this change.
+  tenantId      Int?      @map("tenant_id")
+  createdAt     DateTime? @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
+
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id])
+  projects      Project[]
+  // docs/RBAC-TENANT-RECOMMENDATION.md §6.3: one workflow per Department
+  // (nullable — most Departments have none, meaning "publish directly,
+  // no approval gate," per §6.1's additive/backward-compatible default).
+  approvalWorkflow ApprovalWorkflow?
+  // docs/RBAC-TENANT-RECOMMENDATION.md section 5.6 -- this Department's
+  // own composed roles (name + permission checklist); see CustomRole's
+  // own comment for the rest of the design.
+  customRoles      CustomRole[]
+
+  @@map("departments")
+}
+
+model Project {
+  id            Int       @id @default(autoincrement())
+  uuid          String    @unique
+  name          String
+  slug          String?   @unique
+  description   String?
+  defaultLocale String    @default("en") @map("default_locale")
+  locales       String?
+  disk          String?
+  status        String    @default("live")
+  // Slice 1 (docs/IDENTITY-PLATFORM-RECOMMENDATION.md §7): nullable and
+  // additive on purpose — no existing Project row is backfilled by this
+  // change; see Department above.
+  departmentId  Int?      @map("department_id")
+  createdAt     DateTime? @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  department    Department? @relation(fields: [departmentId], references: [id])
+  collections   Collection[]
+  fields        CollectionField[]
+  content       Content[]
+  meta          ContentMeta[]
+  media         Media[]
+  apiUsers      ProjectApiUser[]
+
+  @@map("projects")
+}
+
+model Collection {
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String
+  description String?
+  options     Json?
+  projectId   Int       @map("project_id")
+  order       Int?
+  createdAt   DateTime? @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  project   Project             @relation(fields: [projectId], references: [id])
+  fields    CollectionField[]
+  content   Content[]
+  versions  CollectionVersion[]
+
+  @@map("collections")
+}
+
+// New — no legacy equivalent. A point-in-time snapshot of a collection's
+// field definitions, taken only when a user clicks "Create Version" (see
+// docs/PHASE-6-NOTES.md). `snapshot` is a plain JSON array shaped like
+// collection_fields rows, not a live reference to any of them, so it stays
+// meaningful even after the real fields are edited or deleted.
+model CollectionVersion {
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  projectId    Int       @map("project_id") @db.UnsignedInt
+  collectionId Int       @map("collection_id") @db.UnsignedInt
+  label        String
+  snapshot     Json
+  createdBy    Int?      @map("created_by") @db.UnsignedInt
+  createdAt    DateTime? @default(now()) @map("created_at")
+
+  collection   Collection @relation(fields: [collectionId], references: [id])
+
+  @@map("collection_versions")
+}
+
+// type: text | richtext | email | number | enumeration | boolean | date | media | relation | json | password
+model CollectionField {
+  id            Int       @id @default(autoincrement())
+  type          String
+  label         String
+  name          String
+  description   String?
+  placeholder   String?
+  options       Json?
+  validations   Json?
+  projectId     Int       @map("project_id")
+  collectionId  Int       @map("collection_id")
+  order         Int?
+  createdAt     DateTime? @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
+
+  project       Project    @relation(fields: [projectId], references: [id])
+  collection    Collection @relation(fields: [collectionId], references: [id])
+
+  @@map("collection_fields")
+}
+
+model Content {
+  id            Int       @id @default(autoincrement())
+  projectId     Int       @map("project_id")
+  collectionId  Int       @map("collection_id")
+  locale        String?
+  createdAt     DateTime? @map("created_at")
+  createdBy     Int?      @map("created_by")
+  updatedAt     DateTime? @map("updated_at")
+  updatedBy     Int?      @map("updated_by")
+  publishedAt   DateTime? @map("published_at")
+  publishedBy   Int?      @map("published_by")
+  deletedAt     DateTime? @map("deleted_at")
+
+  project       Project       @relation(fields: [projectId], references: [id])
+  collection    Collection    @relation(fields: [collectionId], references: [id])
+  meta          ContentMeta[]
+  // docs/RBAC-TENANT-RECOMMENDATION.md §6.2 — usually empty (no workflow
+  // configured) or a short history of submit/reject/resubmit attempts.
+  approvalRequests ContentApprovalRequest[]
+
+  @@map("content")
+}
+
+model ContentMeta {
+  id            Int       @id @default(autoincrement())
+  projectId     Int       @map("project_id")
+  collectionId  Int       @map("collection_id")
+  contentId     Int       @map("content_id")
+  fieldName     String    @map("field_name")
+  value         String?   @db.LongText
+  createdAt     DateTime? @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  project       Project @relation(fields: [projectId], references: [id])
+  content       Content @relation(fields: [contentId], references: [id])
+
+  @@map("content_meta")
+}
+
+// docs/RBAC-TENANT-RECOMMENDATION.md §6, §8 step 6 — configurable
+// approval workflows for content publishing, one per Department (§6.3;
+// a Project-level override is an explicitly deferred fast-follow, not
+// this model). No workflow row for a Department means "publish directly,
+// no approval gate" (§6.1) — this table's mere existence for a row is
+// the on/off switch, not a boolean flag on it.
+// docs/RBAC-TENANT-RECOMMENDATION.md §11.6: scoped to EITHER a
+// Department OR a Project, never both, never neither — departmentId and
+// projectId are each nullable now (was department_id NOT NULL); exactly
+// one is set on any given row, enforced in
+// apps/api/src/approval-workflows/approval-workflows.service.ts's create
+// paths, not a DB constraint (see the SQL migration's own comment for
+// why). projectId has no `@relation` — no real FK backs it at the DB
+// level, matching how ContentApprovalRequest.projectId is already
+// treated (every project_id column in this codebase is a plain scalar,
+// per that migration's documented precedent).
+model ApprovalWorkflow {
+  id           Int       @id @default(autoincrement())
+  departmentId Int?      @unique @map("department_id")
+  projectId    Int?      @unique @map("project_id")
+  name         String    @default("Approval workflow")
+  createdAt    DateTime? @default(now()) @map("created_at")
+  updatedAt    DateTime? @updatedAt @map("updated_at")
+
+  department   Department?             @relation(fields: [departmentId], references: [id])
+  steps        ApprovalStep[]
+  requests     ContentApprovalRequest[]
+
+  @@map("approval_workflows")
+}
+
+// Sequential, ordered steps (§6.1: "sequential for a first version" — the
+// unique (workflowId, stepOrder) pair below is what actually enforces
+// that, not just application code). requiredRoleKind names a ROLE, not a
+// raw permission — see the SQL migration's comment for why a permission
+// string alone (e.g. content:approve) can't distinguish an Admin's
+// sign-off from a Department Admin's, since both hold it identically.
+model ApprovalStep {
+  id               Int       @id @default(autoincrement())
+  workflowId       Int       @map("workflow_id")
+  stepOrder        Int       @map("step_order")
+  // 'admin' | 'department_admin' | 'tenant_admin' — see
+  // apps/api/src/approval-workflows/approval-workflows.service.ts's
+  // ROLE_KIND validation; a Super Admin can always act at any step
+  // regardless (RolesService's usual blanket override), so it's
+  // deliberately not one of the stored choices.
+  requiredRoleKind String    @map("required_role_kind")
+  createdAt        DateTime? @default(now()) @map("created_at")
+
+  workflow         ApprovalWorkflow @relation(fields: [workflowId], references: [id])
+
+  @@map("approval_steps")
+}
+
+// One row per submission-for-publish. The content itself stays in Draft
+// (Content.publishedAt stays NULL) until this reaches status 'approved'
+// at its workflow's final step — see ContentService's publish-gating
+// logic, which is the only thing that ever creates/advances these.
+// contentId/projectId are legacy-table references with NO real FK
+// constraint (see the SQL migration's own comment — matches
+// CollectionVersion's established precedent for the same reason).
+model ContentApprovalRequest {
+  id                Int       @id @default(autoincrement())
+  contentId         Int       @map("content_id") @db.UnsignedInt
+  projectId         Int       @map("project_id") @db.UnsignedInt
+  workflowId        Int       @map("workflow_id")
+  // 'pending' | 'approved' | 'rejected' | 'withdrawn'
+  status            String    @default("pending")
+  currentStepOrder  Int       @default(1) @map("current_step_order")
+  submittedBy       Int?      @map("submitted_by") @db.UnsignedInt
+  submittedAt       DateTime? @map("submitted_at")
+  decidedAt         DateTime? @map("decided_at")
+  createdAt         DateTime? @default(now()) @map("created_at")
+  updatedAt         DateTime? @updatedAt @map("updated_at")
+
+  content           Content          @relation(fields: [contentId], references: [id])
+  workflow          ApprovalWorkflow @relation(fields: [workflowId], references: [id])
+  actions           ContentApprovalAction[]
+
+  @@map("content_approval_requests")
+}
+
+// The audit trail a "configurable approval" feature is meaningless
+// without (docs §6.2/§7's own audit-trail principle): who acted, when,
+// approve or reject, with what comment, at which step.
+model ContentApprovalAction {
+  id        Int       @id @default(autoincrement())
+  requestId Int       @map("request_id")
+  stepOrder Int       @map("step_order")
+  actorId   Int       @map("actor_id") @db.UnsignedInt
+  // 'approved' | 'rejected'
+  action    String
+  comment   String?   @db.Text
+  createdAt DateTime? @default(now()) @map("created_at")
+
+  request   ContentApprovalRequest @relation(fields: [requestId], references: [id])
+
+  @@map("content_approval_actions")
+}
+
+model Media {
+  id        Int       @id @default(autoincrement())
+  projectId Int       @map("project_id")
+  name      String
+  type      String?
+  size      Int?
+  width     Int?
+  height    Int?
+  caption   String?
+  disk      String?
+  createdAt DateTime? @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  project   Project @relation(fields: [projectId], references: [id])
+
+  @@map("media")
+}
+
+
+// New — no legacy equivalent. Every request through the public API
+// (v1 and v2 alike) is recorded here by ApiRequestLogMiddleware, which
+// hooks the response `finish` event so a request is logged whether it
+// succeeds, fails auth, or throws — not just the happy path. Powers the
+// Developer > API Analytics dashboard (see docs/PHASE-7-NOTES.md);
+// `endpoint` is `path` with the project uuid and any trailing numeric id
+// normalized out, so "recent calls" stays literal while "requests by
+// endpoint" buckets sensibly.
+model ApiRequestLog {
+  id         Int      @id @default(autoincrement())
+  projectId  Int?     @map("project_id") @db.UnsignedInt
+  tokenId    Int?     @map("token_id") @db.UnsignedInt
+  apiVersion String   @map("api_version")
+  method     String
+  path       String
+  endpoint   String
+  statusCode Int      @map("status_code")
+  durationMs Int      @map("duration_ms")
+  ip         String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("api_request_logs")
+}
+
+// docs/RBAC-TENANT-RECOMMENDATION.md §7, §8 step 7 -- audited user
+// impersonation. Deliberately no relation fields to User: same no-FK
+// convention as ApiRequestLog above -- an audit row must outlive the
+// account it references, not be blocked by or cascade with it.
+model ImpersonationAuditLog {
+  id           Int       @id @default(autoincrement())
+  actorId      Int       @map("actor_id") @db.UnsignedInt
+  targetUserId Int       @map("target_user_id") @db.UnsignedInt
+  reason       String?
+  startedAt    DateTime  @default(now()) @map("started_at")
+  endedAt      DateTime? @map("ended_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("impersonation_audit_log")
+}
+
+// docs/RBAC-TENANT-RECOMMENDATION.md section 5.6 -- a custom, composable
+// role: a name plus a JSON-encoded checklist of permissions (see
+// apps/api/src/authz/permissions.ts's CUSTOM_ROLE_ASSIGNABLE_PERMISSIONS
+// for the assignable subset), scoped to one Department. Plain Int for
+// id/departmentId with no native-type annotation, matching
+// ApprovalWorkflow's own declaration above -- this schema is
+// hand-maintained against a database it doesn't migrate, and Prisma
+// never validates the annotation against the real (bigint unsigned)
+// column anyway. GRANTING a custom role to a user reuses the existing
+// roles/model_has_roles tables (a role named `custom_role{id}`) rather
+// than a new grant table -- see CustomRolesService for the full mechanism.
+model CustomRole {
+  id           Int       @id @default(autoincrement())
+  departmentId Int       @map("department_id")
+  name         String
+  permissions  String    @db.Text
+  createdAt    DateTime? @default(now()) @map("created_at")
+  updatedAt    DateTime? @updatedAt @map("updated_at")
+
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  @@unique([departmentId, name])
+  @@map("custom_roles")
+}
+
+
+// Maps Laravel Sanctum's existing `personal_access_tokens` table — read-only
+// from this stack. A Project (see Project.uuid above) is a Sanctum
+// "tokenable" via the legacy app's `HasApiTokens` trait, so a token issued
+// by the legacy admin (tokenable_type = 'App\\Models\\Project') keeps
+// working here unchanged — see docs/PHASE-5-NOTES.md for the exact
+// id|secret verification this is built to match (Sanctum's
+// PersonalAccessToken::findToken()). No token *issuance* happens from this
+// stack yet — that admin screen is still Laravel-only, same flagged gap as
+// Phase 1's "API token management" deferral.
+model PersonalAccessToken {
+  id            Int       @id @default(autoincrement())
+  tokenableType String    @map("tokenable_type")
+  tokenableId   Int       @map("tokenable_id")
+  name          String
+  token         String    @unique @db.VarChar(64)
+  abilities     String?   @db.Text
+  lastUsedAt    DateTime? @map("last_used_at")
+  createdAt     DateTime? @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
+
+  @@map("personal_access_tokens")
+}
+
+
+// Public API "authenticate as a user" flow: username/password credentials
+// scoped to one Project, used to mint a short-lived JWT access token plus
+// a rotating opaque refresh token for the public API -- additive
+// alongside the static Sanctum-style PersonalAccessToken keys above, not
+// a replacement (a static key never expires and needs no login step;
+// this is for callers who want a login+refresh session instead). Brand
+// new tables, no legacy-Laravel equivalent -- applied via
+// docker/mysql/add-public-api-auth-schema.sql (see
+// docs/DOCKER-DEV-SETUP.md's "do not use db push" note), never
+// `prisma db push` / `migrate dev` against this database.
+model ProjectApiUser {
+  id           Int       @id @default(autoincrement())
+  projectId    Int       @map("project_id")
+  username     String
+  passwordHash String    @map("password_hash")
+  abilities    String    @db.Text
+  createdAt    DateTime? @default(now()) @map("created_at")
+  updatedAt    DateTime? @updatedAt @map("updated_at")
+
+  project       Project                  @relation(fields: [projectId], references: [id])
+  refreshTokens ProjectApiRefreshToken[]
+
+  @@unique([projectId, username])
+  @@map("project_api_users")
+}
+
+// One row per issued refresh token, so a token can be individually
+// revoked/rotated without invalidating every session for a
+// ProjectApiUser. Only ever stored hashed (sha256 hex, same scheme as
+// PersonalAccessToken.token above) -- see ApiAuthUsersService for
+// issuance/rotation.
+model ProjectApiRefreshToken {
+  id        Int       @id @default(autoincrement())
+  apiUserId Int       @map("api_user_id")
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime? @default(now()) @map("created_at")
+
+  apiUser ProjectApiUser @relation(fields: [apiUserId], references: [id], onDelete: Cascade)
+
+  @@map("project_api_refresh_tokens")
+}
+
+
+// Spatie laravel-permission's existing tables (roles, model_has_roles) —
+// read-only from this stack, same "reuse what the legacy admin already
+// manages" approach as PersonalAccessToken above. Only the two tables the
+// legacy app's `hasRole()`/`isSuperAdmin()` checks actually need are
+// modeled — `permissions`, `model_has_permissions`, and
+// `role_has_permissions` exist in the legacy schema too, but nothing in
+// the legacy codebase ever calls a permission-level check (`can()`), only
+// role-level ones. See docs/PHASE-6-NOTES.md for the full role model:
+// a global `super_admin` role, plus one dynamic `admin{project_id}` and
+// one `editor{project_id}` role auto-created per project.
+model Role {
+  id        Int       @id @default(autoincrement())
+  name      String
+  guardName String    @map("guard_name")
+  createdAt DateTime? @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  modelHasRoles ModelHasRole[]
+
+  @@unique([name, guardName])
+  @@map("roles")
+}
+
+model ModelHasRole {
+  roleId    Int    @map("role_id")
+  modelType String @map("model_type")
+  modelId   Int    @map("model_id")
+
+  role      Role   @relation(fields: [roleId], references: [id])
+
+  @@id([roleId, modelId, modelType])
+  @@map("model_has_roles")
+}

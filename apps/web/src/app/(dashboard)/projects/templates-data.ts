@@ -1,0 +1,305 @@
+// Starter templates for "Use Template". Each one is a real, if opinionated,
+// set of empty collections (name + slug) — no fields. A template creates
+// the project, then creates exactly the collections listed in `includes`,
+// nothing more: it doesn't invent field-level schemas for any of these
+// (there's no source of truth for what fields a "Legal Case Management >
+// Court Dates" collection should have), so what you get is the same
+// starting point as building each collection by hand, just done for you in
+// one step. Add fields afterward from each collection's own page, same as
+// any other collection.
+//
+// None of this has a legacy equivalent — the old app only ever had one
+// hardcoded blog-style seed (ProjectsController::store()'s `type == 2`
+// path, 7 collections with fully-defined fields), which was intentionally
+// left un-ported (see docs/PHASE-6-NOTES.md). This is a broader, new
+// concept for this stack: many domains, no field-level content, real
+// collections instead.
+
+import {
+  BookOpen,
+  Briefcase,
+  Building2,
+  CalendarCheck,
+  CalendarDays,
+  Cloud,
+  GraduationCap,
+  HeartPulse,
+  KanbanSquare,
+  Landmark,
+  MessageCircle,
+  Newspaper,
+  PenLine,
+  Scale,
+  ShoppingBag,
+  Store,
+  UtensilsCrossed,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+
+export interface ProjectTemplate {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  includes: string[];
+  icon: LucideIcon;
+  featured?: boolean;
+}
+
+export const PROJECT_TEMPLATES: ProjectTemplate[] = [
+  {
+    id: "blog-platform",
+    name: "Blog Platform",
+    category: "Content",
+    description: "Complete blog setup with posts, authors, categories, and comments",
+    includes: ["Blog Posts", "Authors", "Categories", "Tags", "Comments"],
+    icon: PenLine,
+    featured: true,
+  },
+  {
+    id: "ecommerce-store",
+    name: "E-Commerce Store",
+    category: "E-Commerce",
+    description: "Product catalog, orders, customers, and inventory management",
+    includes: ["Products", "Categories", "Orders", "Customers", "Reviews"],
+    icon: ShoppingBag,
+    featured: true,
+  },
+  {
+    id: "real-estate-platform",
+    name: "Real Estate Platform",
+    category: "Real Estate",
+    description: "Property listings, agents, inquiries, virtual tours, and mortgage calculator",
+    includes: [
+      "Properties",
+      "Agents",
+      "Property Types",
+      "Inquiries",
+      "Virtual Tours",
+      "Neighborhoods",
+      "Mortgage Applications",
+    ],
+    icon: Building2,
+    featured: true,
+  },
+  {
+    id: "healthcare-portal",
+    name: "Healthcare Portal",
+    category: "Healthcare",
+    description: "Patient records, appointments, prescriptions, doctors, and medical history",
+    includes: [
+      "Patients",
+      "Doctors",
+      "Appointments",
+      "Prescriptions",
+      "Medical Records",
+      "Lab Results",
+      "Insurance Claims",
+    ],
+    icon: HeartPulse,
+  },
+  {
+    id: "learning-management-system",
+    name: "Learning Management System",
+    category: "Education",
+    description: "Courses, lessons, students, assignments, quizzes, and certificates",
+    includes: [
+      "Courses",
+      "Lessons",
+      "Students",
+      "Instructors",
+      "Assignments",
+      "Quizzes",
+      "Certificates",
+      "Discussion Forums",
+    ],
+    icon: GraduationCap,
+  },
+  {
+    id: "event-management-system",
+    name: "Event Management System",
+    category: "Events",
+    description: "Events, ticketing, venues, speakers, schedules, and attendees",
+    includes: [
+      "Events",
+      "Tickets",
+      "Venues",
+      "Speakers",
+      "Sessions",
+      "Attendees",
+      "Sponsors",
+      "Event Feedback",
+    ],
+    icon: CalendarDays,
+  },
+  {
+    id: "hr-management-system",
+    name: "HR Management System",
+    category: "HR",
+    description: "Employees, departments, payroll, leave management, and performance reviews",
+    includes: [
+      "Employees",
+      "Departments",
+      "Positions",
+      "Payroll",
+      "Leave Requests",
+      "Performance Reviews",
+      "Training Programs",
+    ],
+    icon: Users,
+  },
+  {
+    id: "project-management-tool",
+    name: "Project Management Tool",
+    category: "Productivity",
+    description: "Projects, tasks, milestones, team members, time tracking, and reports",
+    includes: [
+      "Projects",
+      "Tasks",
+      "Milestones",
+      "Team Members",
+      "Time Logs",
+      "Documents",
+      "Reports",
+      "Sprints",
+    ],
+    icon: KanbanSquare,
+  },
+  {
+    id: "social-media-platform",
+    name: "Social Media Platform",
+    category: "Social",
+    description: "User profiles, posts, comments, likes, followers, and messaging",
+    includes: [
+      "Users",
+      "Posts",
+      "Comments",
+      "Likes",
+      "Followers",
+      "Messages",
+      "Hashtags",
+      "Stories",
+      "Groups",
+    ],
+    icon: MessageCircle,
+  },
+  {
+    id: "booking-reservation-system",
+    name: "Booking & Reservation System",
+    category: "Booking",
+    description: "Bookings, availability, customers, services, and payment processing",
+    includes: [
+      "Bookings",
+      "Services",
+      "Availability",
+      "Customers",
+      "Payments",
+      "Resources",
+      "Staff",
+      "Reviews",
+    ],
+    icon: CalendarCheck,
+  },
+  {
+    id: "multi-vendor-marketplace",
+    name: "Multi-Vendor Marketplace",
+    category: "E-Commerce",
+    description: "Vendors, products, orders, payments, reviews, and commission tracking",
+    includes: [
+      "Vendors",
+      "Products",
+      "Orders",
+      "Payments",
+      "Reviews",
+      "Categories",
+      "Shipping",
+      "Commissions",
+      "Disputes",
+    ],
+    icon: Store,
+  },
+  {
+    id: "saas-application-template",
+    name: "SaaS Application Template",
+    category: "SaaS",
+    description: "Users, subscriptions, billing, features, usage analytics, and support tickets",
+    includes: [
+      "Users",
+      "Subscriptions",
+      "Plans",
+      "Invoices",
+      "Features",
+      "Usage Metrics",
+      "Support Tickets",
+      "Integrations",
+    ],
+    icon: Cloud,
+  },
+  {
+    id: "financial-services-platform",
+    name: "Financial Services Platform",
+    category: "Finance",
+    description: "Accounts, transactions, investments, portfolios, and financial reports",
+    includes: [
+      "Accounts",
+      "Transactions",
+      "Investments",
+      "Portfolios",
+      "Budgets",
+      "Financial Goals",
+      "Reports",
+      "Alerts",
+    ],
+    icon: Landmark,
+  },
+  {
+    id: "legal-case-management",
+    name: "Legal Case Management",
+    category: "Legal",
+    description: "Cases, clients, documents, court dates, billing, and time tracking",
+    includes: [
+      "Cases",
+      "Clients",
+      "Documents",
+      "Court Dates",
+      "Billing",
+      "Time Entries",
+      "Contacts",
+      "Tasks",
+    ],
+    icon: Scale,
+  },
+  {
+    id: "portfolio-website",
+    name: "Portfolio Website",
+    category: "Personal",
+    description: "Showcase projects, skills, testimonials, and contact information",
+    includes: ["Projects", "Skills", "Testimonials", "Contact Forms"],
+    icon: Briefcase,
+  },
+  {
+    id: "documentation-site",
+    name: "Documentation Site",
+    category: "Documentation",
+    description: "Technical documentation with guides, API references, and tutorials",
+    includes: ["Articles", "API Endpoints", "Code Examples", "Tutorials"],
+    icon: BookOpen,
+  },
+  {
+    id: "news-portal",
+    name: "News Portal",
+    category: "Media",
+    description: "News articles, journalists, categories, and breaking news",
+    includes: ["Articles", "Journalists", "Categories", "Breaking News"],
+    icon: Newspaper,
+  },
+  {
+    id: "restaurant-menu",
+    name: "Restaurant Menu",
+    category: "Food & Beverage",
+    description: "Menu items, categories, specials, and online ordering",
+    includes: ["Menu Items", "Categories", "Specials", "Orders"],
+    icon: UtensilsCrossed,
+  },
+];

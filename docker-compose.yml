@@ -1,0 +1,172 @@
+# Local-development stack: NestJS api + Next.js web + MySQL, each in its own
+# container, with an nginx gateway as the only container reachable from the
+# host. See docs/DOCKER-DEV-SETUP.md before running this.
+#
+# Not a production deployment: `api`/`web` run their dev-mode watchers
+# (`nest start --watch` / `next dev`), not compiled production builds, and
+# `db`'s data (imported from a real dump per docs/DOCKER-DEV-SETUP.md) lives
+# in a local-only named volume.
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    command:
+      [
+        "--character-set-server=utf8mb4",
+        "--collation-server=utf8mb4_unicode_ci",
+      ]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      # Drop a real-data .sql dump here (docker/mysql/init/README.md
+      # explains how) and it auto-imports the first time this volume is
+      # created. Read-only: the container never writes back into the repo.
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    # Deliberately no `ports:` mapping. This is the point of the whole
+    # setup: the database is reachable only from `api`/`web` over the
+    # internal compose network below — never from the host, and never from
+    # the public internet. Everything external comes in through `gateway`.
+    networks:
+      - internal
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    # docs/RBAC-TENANT-RECOMMENDATION.md §11.4: kept as good practice (real
+    # PID 1 process reaping/signal forwarding, via the Docker Engine's
+    # built-in tini), but NOTE — this alone did NOT fix the EADDRINUSE
+    # issue below; confirmed live with a real rebuild after adding this.
+    init: true
+    depends_on:
+      - db
+    env_file:
+      # Your existing local secrets (API_JWT_SECRET, media/S3 config, etc.)
+      # — copy apps/api/.env.example to apps/api/.env first if you haven't.
+      - ./apps/api/.env
+    environment:
+      # Overrides env_file above: inside this network the database is
+      # reachable at the service name `db`, not `localhost`.
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
+      # Browsers always talk to the gateway's published origin, whether
+      # they're hitting web or api paths, so CORS needs to allow that
+      # origin specifically (not the container-internal `web:3000`).
+      WEB_ORIGIN: http://localhost:8080
+      # docs/RBAC-TENANT-RECOMMENDATION.md §11.4: kept as a harmless,
+      # possibly-partial mitigation, but NOTE — confirmed live that this
+      # alone does NOT fix the EADDRINUSE issue either (same as init: true
+      # above). `nest start --watch`'s child-process respawn appears to
+      # race regardless of what triggers the rebuild, not specifically a
+      # duplicate-fs-event problem — see the standing workaround captured
+      # in this section: force-recreate the container after any api change
+      # (`docker compose kill api && docker compose up -d --force-recreate
+      # api`) rather than relying on watch-mode or a plain restart.
+      TSC_WATCHFILE: DynamicPriorityPolling
+      TSC_WATCHDIRECTORY: DynamicPriorityPolling
+    volumes:
+      - .:/app
+      # Shadows the bind mount above at just this path, so each container
+      # keeps the node_modules it installed at build time (correct
+      # platform/arch) instead of whatever (or nothing) is on the host.
+      - api_node_modules:/app/node_modules
+    networks:
+      - internal
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    env_file:
+      # Copy apps/web/.env.example to apps/web/.env first if you haven't.
+      - ./apps/web/.env
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
+      API_URL: http://api:4000
+      NEXTAUTH_URL: http://localhost:8080
+    volumes:
+      - .:/app
+      - web_node_modules:/app/node_modules
+    networks:
+      - internal
+
+  # --- Slice 1 (docs/IDENTITY-PLATFORM-RECOMMENDATION.md §7) ---
+  # Keycloak's own store. Deliberately a separate Postgres instance with NO
+  # connection to `db` (the real MySQL app data) at all — that isolation is
+  # the safety property this whole slice depends on: Keycloak cannot see or
+  # touch real seeded content, full stop.
+  keycloak-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${KEYCLOAK_DB_NAME}
+      POSTGRES_USER: ${KEYCLOAK_DB_USER}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    restart: unless-stopped
+    # `--import-realm` loads docker/keycloak/import/*.json on every startup
+    # if the realm doesn't already exist yet (idempotent — safe to restart).
+    # `--features=organization` turns on the Organizations feature
+    # regardless of this image's current GA/preview status.
+    command: ["start-dev", "--import-realm", "--features=organization"]
+    depends_on:
+      - keycloak-db
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_NAME}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    volumes:
+      - ./docker/keycloak/import:/opt/keycloak/data/import:ro
+    # Dev-only DIRECT port, not routed through `gateway` (unlike everything
+    # else in this file). This is deliberate, not an oversight: the browser
+    # (running on your host) and this container's own server-to-server
+    # calls need different Keycloak URLs — see KEYCLOAK_ISSUER_EXTERNAL vs.
+    # KEYCLOAK_ISSUER_INTERNAL in apps/web/.env.example. Routing this
+    # through the gateway too is a nice-to-have for later, not a Slice 1
+    # blocker.
+    ports:
+      - "8081:8080"
+    networks:
+      - internal
+
+  gateway:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - internal
+
+volumes:
+  db_data:
+  api_node_modules:
+  web_node_modules:
+  keycloak_db_data:
+
+networks:
+  internal:
+    driver: bridge

@@ -1,0 +1,23 @@
+{
+  "name": "@veroxm/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VeroXM public API client -- authenticate, read/write content, and manage media from any JavaScript/TypeScript project (web, Node 18+, React Native).",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "keywords": ["veroxm", "cms", "headless-cms", "sdk"]
+}

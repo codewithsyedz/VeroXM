@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans, Arial, Helvetica, sans-serif);
+  --font-mono: var(--font-geist-mono, monospace);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ---------------------------------------------------------------------
+ * "Obsidian Atelier" — the dashboard's own design language, ported from
+ * the reference project (../veroxm-obsidian-atelier's client/src/index.css,
+ * trimmed to the dashboard-relevant subset; its marketing-hero scenes are
+ * out of scope here). Deliberately scoped under `.dashboard-theme` rather
+ * than `:root`/`body` above, so it applies only inside the (dashboard)
+ * route group (see (dashboard)/layout.tsx) and never bleeds into the
+ * still-unbuilt public marketing site, which keeps the plain defaults
+ * above until its own design pass.
+ * ------------------------------------------------------------------- */
+.dashboard-theme {
+  --db-background: #08081b;
+  --db-foreground: #f2f3fb;
+  --db-surface-1: rgba(11, 12, 34, 0.89);
+  --db-surface-inset: #0b0c22;
+  --db-hairline: rgba(214, 219, 245, 0.12);
+  --db-hairline-quiet: rgba(214, 219, 245, 0.065);
+  --db-sapphire: #4531e0;
+  --db-sapphire-soft: #4da3ff;
+  --db-ink: #f2f3fb;
+  --db-ink-muted: #b8bfd8;
+  --db-ink-quiet: #7680a3;
+  --db-content-max: 1440px;
+  --db-gutter-desktop: clamp(28px, 4vw, 72px);
+  --db-gutter-mobile: 20px;
+  --db-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  min-height: 100%;
+  background: radial-gradient(circle at 86% -8%, rgba(60, 50, 220, 0.20), transparent 32%), var(--db-background);
+  color: var(--db-foreground);
+  font-family: var(--font-manrope), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.025em;
+}
+
+.dashboard-theme code,
+.dashboard-theme pre,
+.dashboard-theme .font-mono-code {
+  font-family: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
+  letter-spacing: -0.02em;
+}
+.dashboard-theme button,
+.dashboard-theme input,
+.dashboard-theme textarea,
+.dashboard-theme select { font: inherit; }
+.dashboard-theme button:focus-visible,
+.dashboard-theme a:focus-visible,
+.dashboard-theme input:focus-visible,
+.dashboard-theme textarea:focus-visible {
+  outline: 2px solid var(--db-sapphire-soft);
+  outline-offset: 3px;
+}
+.dashboard-theme ::selection { background: rgba(108, 240, 164, 0.25); color: var(--db-ink); }
+
+.dashboard-theme .container { width: 100%; max-width: var(--db-content-max); margin-inline: auto; padding-inline: var(--db-gutter-mobile); }
+@media (min-width: 768px) { .dashboard-theme .container { padding-inline: var(--db-gutter-desktop); } }
+
+.dashboard-theme .surface-feature {
+  background: linear-gradient(135deg, rgba(28, 22, 74, 0.90), rgba(9, 9, 24, 0.94));
+  border: 1px solid rgba(214, 219, 245, 0.14);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(240, 244, 255, 0.11);
+}
+.dashboard-theme .surface-standard { background: var(--db-surface-1); border: 1px solid var(--db-hairline-quiet); }
+.dashboard-theme .surface-inset { background: var(--db-surface-inset); border: 1px solid rgba(214, 219, 245, 0.06); }
+.dashboard-theme .motion-interactive { transition: transform 180ms var(--db-ease-out), background-color 180ms ease, border-color 180ms ease, color 140ms ease, box-shadow 180ms ease, opacity 160ms ease; }
+.dashboard-theme .motion-interactive:active { transform: scale(0.98); }
+.dashboard-theme .eyebrow { font-family: var(--font-jetbrains-mono), monospace; font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.10em; line-height: 1.4; text-transform: uppercase; color: var(--db-sapphire-soft); }
+.dashboard-theme .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 999px; background: #4fb0ff; box-shadow: 0 0 0 3px rgba(79, 176, 255, 0.10); }
+.dashboard-theme .input-quiet { width: 100%; border: 1px solid var(--db-hairline); border-radius: 0.625rem; background: var(--db-surface-inset); color: var(--db-ink); transition: border-color 160ms ease, box-shadow 160ms ease; }
+.dashboard-theme .input-quiet::placeholder { color: var(--db-ink-quiet); }
+.dashboard-theme .input-quiet:focus { border-color: rgba(77, 163, 255, 0.78); box-shadow: 0 0 0 3px rgba(69, 49, 224, 0.16); outline: none; }
+.dashboard-theme .button-primary { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border: 1px solid rgba(160, 175, 255, 0.22); border-radius: 0.5rem; background: #4531e0; color: #eef2ff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 24px rgba(18, 12, 90, 0.26); font-size: 0.8125rem; font-weight: 700; transition: transform 160ms var(--db-ease-out), background-color 160ms ease, box-shadow 160ms ease; }
+.dashboard-theme .button-primary:hover { background: #5a46ff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 28px rgba(18, 12, 90, 0.34); }
+.dashboard-theme .button-primary:active { transform: scale(0.98); }
+.dashboard-theme .button-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.dashboard-theme .button-secondary { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border: 1px solid var(--db-hairline); border-radius: 0.5rem; background: rgba(255, 255, 255, 0.025); color: var(--db-ink-muted); font-size: 0.8125rem; font-weight: 600; transition: transform 160ms var(--db-ease-out), background-color 160ms ease, border-color 160ms ease, color 160ms ease; }
+.dashboard-theme .button-secondary:hover { background: rgba(255, 255, 255, 0.055); border-color: rgba(214, 219, 245, 0.18); color: var(--db-ink); }
+.dashboard-theme .button-secondary:active { transform: scale(0.98); }
+.dashboard-theme .icon-button { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 0.5rem; color: var(--db-ink-muted); transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 150ms var(--db-ease-out); }
+.dashboard-theme .icon-button:hover { background: rgba(255,255,255,0.055); border-color: var(--db-hairline-quiet); color: var(--db-ink); }
+.dashboard-theme .icon-button:active { transform: scale(0.96); }
+.dashboard-theme .icon-button:disabled { opacity: 0.3; cursor: not-allowed; }

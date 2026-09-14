@@ -1,0 +1,9 @@
+include: package:lints/recommended.yaml
+
+linter:
+  rules:
+    # This package deliberately exposes a couple of small internal-ish
+    # helpers (e.g. ContentResource's private fields) without doc comments
+    # on every single member -- not worth fighting the linter over for a
+    # v0.1.0 internal package.
+    public_member_api_docs: false

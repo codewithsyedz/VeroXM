@@ -1,0 +1,16 @@
+{
+  "name": "mycms",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run start:dev --workspace=apps/api",
+    "db:generate": "npm run generate --workspace=packages/db",
+    "db:studio": "npm run studio --workspace=packages/db",
+    "keycloak:setup": "node docker/keycloak/setup-department.mjs",
+    "keycloak:setup-admin-roles": "node docker/keycloak/setup-tenant-department-admin-roles.mjs"
+  }
+}

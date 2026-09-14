@@ -1,0 +1,20 @@
+name: veroxm_sdk
+description: >
+  VeroXM public API client -- authenticate, read/write content, and manage
+  media from any Dart or Flutter project. A plain Dart package (no Flutter
+  SDK dependency), so it works in Flutter apps, command-line Dart tools,
+  and Dart servers alike. Mirrors @veroxm/sdk (the JS/TS package in this
+  monorepo) feature-for-feature.
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  http: ^1.2.0
+  http_parser: ^4.0.0
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0

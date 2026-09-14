@@ -1,0 +1,61 @@
+{
+  "realm": "mycms-dev",
+  "enabled": true,
+  "organizationsEnabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "roles": {
+    "realm": [
+      {
+        "name": "department-member",
+        "description": "Slice 1 test role (docs/IDENTITY-PLATFORM-RECOMMENDATION.md §7) — a member of the seeded Department/Organization."
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "mycms-web",
+      "name": "myCMS Web (Slice 1)",
+      "description": "NextAuth's KeycloakProvider client — see apps/web/src/lib/auth.ts",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dev-client-secret-change-me",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8080/api/auth/callback/keycloak",
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": ["http://localhost:8080"]
+    }
+  ],
+  "users": [
+    {
+      "username": "dept-admin",
+      "email": "dept-admin@example.test",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Department",
+      "lastName": "Admin",
+      "credentials": [
+        { "type": "password", "value": "dev-password-change-me", "temporary": false }
+      ],
+      "realmRoles": ["department-member"]
+    },
+    {
+      "username": "dept-editor",
+      "email": "dept-editor@example.test",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Department",
+      "lastName": "Editor",
+      "credentials": [
+        { "type": "password", "value": "dev-password-change-me", "temporary": false }
+      ],
+      "realmRoles": ["department-member"]
+    }
+  ]
+}

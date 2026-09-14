@@ -1,0 +1,60 @@
+# Strangler-fig routing sketch for cms.node2cloud.com.
+# Uncomment/adjust one location block per phase as modules cut over;
+# everything not explicitly routed to the new stack keeps hitting Laravel.
+
+upstream legacy_laravel {
+    server 127.0.0.1:8000;   # existing PHP-FPM/Apache/nginx setup
+}
+
+upstream nestjs_api {
+    server 127.0.0.1:4000;
+}
+
+upstream nextjs_web {
+    server 127.0.0.1:3000;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name cms.node2cloud.com;
+
+    # --- Phase 5: public content API v1 shim (new stack) ---
+    # The legacy public API is mounted by Laravel's RouteServiceProvider at
+    # `Route::prefix('api')`, so its real external paths are
+    # `/api/{uuid}/{slug}`, `/api/{uuid}/{slug}/{id}`, etc. The NestJS shim
+    # implements the same route shape one level down, at `/public/v1/...`
+    # (kept distinct from `/public/v2/...` inside the new app) — this
+    # rewrite is what makes the external contract identical.
+    # location /api/ {
+    #     rewrite ^/api/(.*)$ /public/v1/$1 break;
+    #     proxy_pass http://nestjs_api;
+    # }
+
+    # --- Phase 5: public content API v2 (new stack, new contract) ---
+    # location /public/v2/ {
+    #     proxy_pass http://nestjs_api;
+    # }
+
+    # --- Phase 1-4: admin screens, enabled module by module ---
+    # location /projects/ {
+    #     proxy_pass http://nextjs_web;
+    # }
+
+    # --- Needed as soon as the block above goes live, not later ---
+    # NextAuth mounts its own session/signin/callback endpoints at
+    # /api/auth/* inside the Next.js app itself. Found by actually running
+    # the stack end-to-end for the first time (docker/nginx/gateway.conf's
+    # local-dev equivalent hit this first): if this isn't uncommented at
+    # the same time as /projects/ above, NextAuth's requests fall through
+    # to the Phase 5 /api/ block once that's live (wrong app entirely), or
+    # to the default location below and hit Laravel (which has no such
+    # route) before that. This has to win over both.
+    # location /api/auth/ {
+    #     proxy_pass http://nextjs_web;
+    # }
+
+    # Default: everything else stays on Laravel until explicitly migrated.
+    location / {
+        proxy_pass http://legacy_laravel;
+    }
+}
