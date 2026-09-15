@@ -50,6 +50,8 @@ export class V2ContentController {
       limit: query.limit !== undefined ? Number(query.limit) : undefined,
       count: query.count !== undefined,
       timestamps: query.timestamps !== undefined,
+      // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.2.
+      locale: query.locale,
     };
     return this.contentService.list(req.projectToken.project.id, slug, options);
   }

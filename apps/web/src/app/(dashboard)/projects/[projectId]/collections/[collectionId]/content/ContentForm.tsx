@@ -693,7 +693,7 @@ export default function ContentForm({
   return (
     <div className="flex flex-col gap-6">
       <div className="surface-inset flex flex-wrap items-center gap-5 rounded-xl px-4 py-3.5">
-        <label className="flex items-center gap-2 text-xs text-[#b8bfd8]">
+        <label className="flex items-center gap-2 text-xs text-[#b8bfd8]" title="Leave blank for the project's default locale. A different value here creates a separate, independently-published locale variant of this entry — filterable from the collection's content list.">
           Locale
           <input
             value={locale}

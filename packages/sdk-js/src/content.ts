@@ -16,6 +16,19 @@ export interface ListOptions {
   first?: boolean;
   /** Include created_at/updated_at in each returned entry. */
   timestamps?: boolean;
+  /**
+   * docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.2 -- filter to one
+   * locale's entries. Omitted matches the project's default locale (and
+   * any entry created before multi-locale existed, which has no locale
+   * tag at all) -- not "every locale mixed together". Combine with
+   * `first` (via search()) to fetch one specific logical entry's
+   * translation, e.g. `search({where: {slug: 'my-post'}, first: true,
+   * locale: 'ar'})` -- if no `ar` row exists for that filter, the API
+   * falls back to the default locale once before 404ing, so this never
+   * silently returns a translation you didn't ask for EXCEPT as an
+   * explicit last resort.
+   */
+  locale?: string;
 }
 
 /**
@@ -45,6 +58,7 @@ export class ContentResource<T = Record<string, unknown>> {
         state: options.state,
         count: options.count ? '1' : undefined,
         timestamps: options.timestamps ? '1' : undefined,
+        locale: options.locale,
       },
     }) as Promise<T[]>;
   }
@@ -64,7 +78,18 @@ export class ContentResource<T = Record<string, unknown>> {
     return result as unknown as number;
   }
 
-  /** Only ever returns a PUBLISHED record -- the API's single-item lookup has no `state` override, so a draft id 404s here even right after create({draft: true}); use list({state: 'only_draft'}) to find/inspect drafts instead. */
+  /**
+   * Only ever returns a PUBLISHED record -- the API's single-item lookup
+   * has no `state` override, so a draft id 404s here even right after
+   * create({draft: true}); use list({state: 'only_draft'}) to find/inspect
+   * drafts instead.
+   *
+   * No `locale` option here (unlike list()/search()/count()) -- `id`
+   * already identifies one exact row, which has exactly one locale;
+   * there's no "translation of this same id" to select between. To fetch
+   * a specific locale's entry, filter list()/search() by whatever field
+   * identifies the logical entry (e.g. `slug`) plus `locale`, not by id.
+   */
   async get(id: number, options: { timestamps?: boolean } = {}): Promise<T> {
     return this.app.request({
       path: `${this.root()}/${id}`,

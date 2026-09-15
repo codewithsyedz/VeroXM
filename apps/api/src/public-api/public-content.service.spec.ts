@@ -30,7 +30,7 @@ function fakeCache() {
 }
 
 function buildService() {
-  const collection = { id: 9, fields: [] as unknown[] };
+  const collection = { id: 9, fields: [] as unknown[], project: { defaultLocale: "en" } };
   const prisma = {
     collection: { findFirst: vi.fn().mockResolvedValue(collection) },
     content: {
@@ -107,5 +107,54 @@ describe('PublicContentService cache-aside read path', () => {
     // NotFoundException was never written to the cache.
     await expect(service.getById(1, 'articles', 999, false)).rejects.toThrow();
     expect(prisma.content.findFirst).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('PublicContentService locale filtering (§4.2)', () => {
+  it('an explicit locale filters exactly, with no fallback baked in', async () => {
+    const { service, prisma } = buildService();
+    prisma.content.findMany.mockResolvedValue([]);
+
+    await service.list(1, 'articles', { locale: 'ar' });
+
+    const mainCallWhere = prisma.content.findMany.mock.calls[1][0].where;
+    expect(mainCallWhere.locale).toBe('ar');
+  });
+
+  it('omitting locale matches the project default locale AND untagged (null) rows', async () => {
+    const { service, prisma } = buildService();
+    prisma.content.findMany.mockResolvedValue([]);
+
+    await service.list(1, 'articles', {});
+
+    const mainCallWhere = prisma.content.findMany.mock.calls[1][0].where;
+    expect(mainCallWhere.locale).toEqual({ in: [null, 'en'] });
+  });
+
+  it('first + an explicit locale with no match retries once against the default locale before giving up', async () => {
+    const { service, prisma } = buildService();
+    const enRow = { id: 1, projectId: 1, collectionId: 9, locale: 'en', createdAt: null, updatedAt: null, publishedAt: new Date(), meta: [] };
+    prisma.content.findMany
+      .mockResolvedValueOnce([]) // universe scan, attempt 1 (locale: 'ar')
+      .mockResolvedValueOnce([]) // main query, attempt 1 -- nothing in 'ar'
+      .mockResolvedValueOnce([{ id: 1 }]) // universe scan, attempt 2 (fallback to default)
+      .mockResolvedValueOnce([enRow]); // main query, attempt 2 -- found in 'en'
+
+    const result = await service.list(1, 'articles', { locale: 'ar', first: true });
+
+    expect(prisma.content.findMany).toHaveBeenCalledTimes(4);
+    const secondAttemptWhere = prisma.content.findMany.mock.calls[3][0].where;
+    expect(secondAttemptWhere.locale).toEqual({ in: [null, 'en'] });
+    expect((result as any).id).toBe(1);
+  });
+
+  it('first + an explicit locale with no match anywhere throws 404 (no infinite retry)', async () => {
+    const { service, prisma } = buildService();
+    prisma.content.findMany.mockResolvedValue([]);
+
+    await expect(service.list(1, 'articles', { locale: 'ar', first: true })).rejects.toThrow();
+    // Exactly two attempts (requested locale, then the default-locale
+    // retry) -- 2 findMany calls per attempt, never more.
+    expect(prisma.content.findMany).toHaveBeenCalledTimes(4);
   });
 });

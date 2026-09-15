@@ -210,14 +210,24 @@ export default function ContentList({
   initial,
   status,
   search,
+  locale,
 }: {
   projectId: string;
   collectionId: string;
   initial: ContentListResponse;
   status: StatusFilter;
   search: string;
+  // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.2 -- an exact-match
+  // filter on top of the existing search/status ones, same plain-text-input
+  // treatment as `search` (no dropdown sourced from Project.locales: that
+  // column is a bare CSV string with no admin UI to manage it yet, so
+  // presenting it as a fixed set of choices here would be more misleading
+  // than a free-text filter that just matches whatever locale tag entries
+  // actually carry).
+  locale: string;
 }) {
   const [searchInput, setSearchInput] = useState(search);
+  const [localeInput, setLocaleInput] = useState(locale);
   const router = useRouter();
   const searchParams = useSearchParams();
   const justCreated = searchParams.get("created") === "1";
@@ -237,11 +247,13 @@ export default function ContentList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [justCreated]);
 
-  function buildUrl(next: { status?: StatusFilter; search?: string; page?: number }) {
+  function buildUrl(next: { status?: StatusFilter; search?: string; locale?: string; page?: number }) {
     const params = new URLSearchParams();
     params.set("status", next.status ?? status);
     const s = next.search !== undefined ? next.search : search;
     if (s) params.set("search", s);
+    const l = next.locale !== undefined ? next.locale : locale;
+    if (l) params.set("locale", l);
     if (next.page && next.page > 1) params.set("page", String(next.page));
     return `/projects/${projectId}/collections/${collectionId}/content?${params}`;
   }
@@ -277,20 +289,29 @@ export default function ContentList({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            window.location.href = buildUrl({ search: searchInput, page: 1 });
+            window.location.href = buildUrl({ search: searchInput, locale: localeInput, page: 1 });
           }}
-          className="relative flex-1 sm:max-w-sm"
+          className="flex flex-1 items-center gap-2 sm:max-w-md"
         >
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7680a3]"
-            aria-hidden="true"
-          />
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7680a3]"
+              aria-hidden="true"
+            />
+            <input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search entries"
+              aria-label="Search entries"
+              className="input-quiet h-11 w-full pl-9 pr-3 text-sm"
+            />
+          </div>
           <input
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search entries"
-            aria-label="Search entries"
-            className="input-quiet h-11 pl-9 pr-3 text-sm"
+            value={localeInput}
+            onChange={(e) => setLocaleInput(e.target.value)}
+            placeholder="Locale"
+            aria-label="Filter by locale"
+            className="input-quiet h-11 w-24 px-3 text-sm"
           />
         </form>
 

@@ -51,6 +51,8 @@ export class ContentController {
       cr: query.cr === 'DESC' ? 'DESC' : query.cr === 'ASC' ? 'ASC' : undefined,
       sbm: query.sbm === 'true' || query.sbm === '1',
       getItems: (query.getItems as ContentListQuery['getItems']) ?? undefined,
+      // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.2.
+      locale: query.locale || undefined,
     };
     return this.contentService.list(projectId, collectionId, listQuery);
   }

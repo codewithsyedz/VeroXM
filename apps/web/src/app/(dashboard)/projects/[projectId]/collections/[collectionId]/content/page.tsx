@@ -27,11 +27,13 @@ async function getContentList(
   projectId: string,
   collectionId: string,
   apiToken: string,
-  searchParams: { status?: string; search?: string; page?: string },
+  searchParams: { status?: string; search?: string; locale?: string; page?: string },
 ): Promise<ContentListResponse> {
   const params = new URLSearchParams();
   params.set("getItems", searchParams.status ?? "all");
   if (searchParams.search) params.set("search", searchParams.search);
+  // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.2.
+  if (searchParams.locale) params.set("locale", searchParams.locale);
   if (searchParams.page) params.set("page", searchParams.page);
 
   const res = await fetch(
@@ -47,7 +49,7 @@ export default async function ContentListPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string; collectionId: string }>;
-  searchParams: Promise<{ status?: string; search?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; search?: string; locale?: string; page?: string }>;
 }) {
   const { projectId, collectionId } = await params;
   const sp = await searchParams;
@@ -92,6 +94,7 @@ export default async function ContentListPage({
           initial={list}
           status={status}
           search={sp.search ?? ""}
+          locale={sp.locale ?? ""}
         />
       </div>
     </div>

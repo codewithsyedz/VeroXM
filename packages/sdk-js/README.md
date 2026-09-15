@@ -84,6 +84,29 @@ Two real API behaviors worth knowing before you rely on them:
   previously a draft. Pass `draft: true` explicitly if you want the update
   to leave it (or put it back) unpublished.
 
+## Locales
+
+An entry can have per-locale variants (separate rows sharing whatever field
+you use to identify "the same logical entry", e.g. `slug` -- there's no
+built-in cross-locale id). `list()`/`search()`/`count()` all take a
+`locale` option:
+
+```ts
+// Only the Arabic entries.
+const arPosts = await posts.list({ locale: 'ar' });
+
+// One specific entry's translation, falling back to the project's
+// default locale if that exact translation doesn't exist yet -- never a
+// silent 404 just because a translation is missing.
+const post = await posts.search({ where: [{ slug: { equals: 'hello' } }], first: true, locale: 'ar' });
+```
+
+Omitting `locale` matches the project's default locale *and* any entry
+created before locales existed (which has no locale tag at all) -- not
+"every locale mixed together." `get(id)` has no `locale` option: an id
+already identifies one exact row/locale, so there's nothing to select
+between there.
+
 ## Auth modes
 
 - **`signInWithApiKey(key)`** -- a static project API key. Simplest option

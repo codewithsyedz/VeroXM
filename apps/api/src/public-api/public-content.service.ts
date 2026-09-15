@@ -61,6 +61,14 @@ export interface ListOptions {
   count?: boolean;
   first?: boolean;
   timestamps?: boolean;
+  // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.2 -- multi-locale
+  // delivery. Omitted: matches rows tagged with the project's own
+  // defaultLocale AND untagged (locale: null) rows -- see list()'s own
+  // comment on why "no filter at all" would be wrong here. Provided: an
+  // exact match only, no fallback -- except when combined with `first`,
+  // where an empty result retries once against the default locale (see
+  // list()).
+  locale?: string;
 }
 
 function splitCsv(v: string): string[] {
@@ -87,7 +95,10 @@ export class PublicContentService {
   private async loadCollection(projectId: number, slug: string) {
     const collection = await this.prisma.collection.findFirst({
       where: { projectId, slug, deletedAt: null },
-      include: { fields: true },
+      // `project: { defaultLocale }` -- needed by list()'s locale
+      // fallback (docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.2).
+      // One join, no extra round trip.
+      include: { fields: true, project: { select: { defaultLocale: true } } },
     });
     if (!collection) throw new NotFoundException({ error: 'Collection not found!' });
     return collection;
@@ -429,6 +440,41 @@ export class PublicContentService {
     const cached = await this.cache.get<unknown>(cacheKey);
     if (cached !== undefined) return cached;
 
+    let result = await this.computeList(projectId, collection, options, options.locale);
+
+    // §4.2's own spec: "fall back to Project.defaultLocale ... when the
+    // requested locale has no row." Only meaningful for `first` (a single
+    // logical entry looked up by some other key, e.g. `where: {slug}`) --
+    // a plain list legitimately CAN be empty for a given locale, that's
+    // not an error to recover from. Retried once, never looped: if the
+    // default locale also has nothing, that's a real 404.
+    if (options.first && result === undefined && options.locale && options.locale !== collection.project.defaultLocale) {
+      result = await this.computeList(projectId, collection, options, undefined);
+    }
+
+    if (options.first && result === undefined) {
+      // A miss (nothing matched, even after the fallback above) is NOT
+      // cached -- newly published content matching an existing `first`
+      // query should show up as soon as it exists, not wait out the TTL
+      // of a previously-cached "not found".
+      throw new NotFoundException({ error: 'Not found!' });
+    }
+
+    await this.cache.set(cacheKey, result);
+    return result;
+  }
+
+  // The actual query, parameterized by which locale to filter on --
+  // pulled out of list() so the §4.2 retry-against-default-locale path
+  // above can call it twice without duplicating this logic. Returns
+  // `undefined` (never throws) when `options.first` matched nothing, so
+  // the caller can decide whether to retry or give up.
+  private async computeList(
+    projectId: number,
+    collection: { id: number; fields: unknown; project: { defaultLocale: string } },
+    options: ListOptions,
+    effectiveLocale: string | undefined,
+  ) {
     const fields = collection.fields as unknown as FieldRow[];
     const fieldsByName = new Map(fields.map((f) => [f.name, f]));
 
@@ -457,18 +503,31 @@ export class PublicContentService {
     const publishedFilter =
       options.state === 'only_draft' ? { publishedAt: null } : { publishedAt: { not: null } };
 
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.2 -- an explicit
+    // `effectiveLocale` matches exactly (no fallback baked in here; the
+    // retry-against-default happens one level up, in list()). No locale
+    // requested at all matches BOTH the project's defaultLocale AND
+    // untagged (`locale: null`) rows -- not just the default -- because
+    // every row created before this feature existed has `locale: null`
+    // (ContentService.create() only ever defaults to `null`, never to
+    // defaultLocale), and treating those as invisible the moment §4.2
+    // ships would be a real regression for every existing customer, not a
+    // narrowing of an already-scoped-down feature.
+    const localeFilter = effectiveLocale
+      ? { locale: effectiveLocale }
+      : { locale: { in: [null, collection.project.defaultLocale] } };
+
     const where: Record<string, unknown> = {
       projectId,
       collectionId: collection.id,
       ...publishedFilter,
+      ...localeFilter,
       ...columnFilters,
       ...(idFilter !== null ? { id: { in: idFilter } } : {}),
     };
 
     if (options.count) {
-      const total = await this.prisma.content.count({ where });
-      await this.cache.set(cacheKey, total);
-      return total;
+      return this.prisma.content.count({ where });
     }
 
     if (options.offset !== undefined && options.limit === undefined) {
@@ -524,14 +583,8 @@ export class PublicContentService {
     );
 
     if (options.first) {
-      // A miss (nothing matched) is NOT cached -- newly published content
-      // matching an existing `first` query should show up as soon as it
-      // exists, not wait out the TTL of a previously-cached "not found".
-      if (!shaped.length) throw new NotFoundException({ error: 'Not found!' });
-      await this.cache.set(cacheKey, shaped[0]);
-      return shaped[0];
+      return shaped.length ? shaped[0] : undefined;
     }
-    await this.cache.set(cacheKey, shaped);
     return shaped;
   }
 

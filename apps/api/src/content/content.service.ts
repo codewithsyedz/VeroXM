@@ -48,6 +48,13 @@ export interface ContentListQuery {
   cr?: 'ASC' | 'DESC';
   sbm?: boolean; // "sort by meta" — order by a field's value instead of a content column
   getItems?: 'all' | 'published' | 'draft' | 'trashed';
+  // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.2 -- an exact-match
+  // filter, unlike the public API's own `?locale=` (see
+  // PublicContentService.list()): this is an editor browsing their own
+  // project's content, not an external reader who needs a
+  // defaultLocale/untagged-row fallback. Omitted means "every locale",
+  // matching this list's existing (pre-§4.2) behavior exactly.
+  locale?: string;
 }
 
 export interface ContentInput {
@@ -164,6 +171,7 @@ export class ContentService {
 
     const baseWhere = {
       collectionId,
+      ...(query.locale ? { locale: query.locale } : {}),
       ...(searchedContentIds ? { id: { in: searchedContentIds } } : {}),
     };
 
