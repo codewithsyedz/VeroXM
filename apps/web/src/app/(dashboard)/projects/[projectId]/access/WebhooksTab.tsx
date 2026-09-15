@@ -62,6 +62,51 @@ const EVENT_OPTIONS: Array<{ value: string; label: string; description: string }
   },
 ];
 
+// docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.3 -- "reference webhook
+// consumers." Deliberately NOT a Slack/Teams-specific backend integration
+// (no VeroXM-side code sends a Slack-shaped payload) -- every VeroXM
+// webhook always POSTs the same signed `{event, data, sentAt}` JSON body
+// regardless of recipe. What a preset actually changes here is: sensible
+// default events for that destination, and an inline note on what stands
+// between "paste a URL" and "see it in Slack/Teams" -- since both of those
+// services expect their OWN payload shape (`{"text": "..."}` for Slack,
+// an Adaptive Card for Teams), not this generic one. A thin relay (a
+// thirty-second Zapier/Make "Catch Hook -> format message -> post to
+// Slack" chain, or a few lines of code) is what actually bridges the two
+// — same conclusion the recommendation doc's §4A reached for this whole
+// class of integration ("customer configures a URL," not new VeroXM
+// code), just spelled out here instead of left implicit.
+export const WEBHOOK_RECIPES: Array<{
+  id: string;
+  label: string;
+  defaultEvents: string[];
+  note: string;
+}> = [
+  {
+    id: "custom",
+    label: "Custom / generic",
+    defaultEvents: ["content.published"],
+    note: "Point this at any endpoint that can accept a signed JSON POST — see the payload shape below.",
+  },
+  {
+    id: "slack",
+    label: "Slack",
+    defaultEvents: ["content.published", "approval.requested"],
+    note:
+      'Slack\'s own Incoming Webhook URL expects {"text": "..."}, not this payload as-is — route through a small relay ' +
+      '(a Zapier/Make "Catch Hook" step, or a few lines of code) that reads `event`/`data` below and posts a formatted ' +
+      'Slack message. No Slack-specific code ships inside VeroXM; this is the wiring pattern, not a built-in integration.',
+  },
+  {
+    id: "teams",
+    label: "Microsoft Teams",
+    defaultEvents: ["content.published", "approval.requested"],
+    note:
+      "Same idea as Slack: a Teams Incoming Webhook expects its own Adaptive Card JSON, so a small relay step reformats " +
+      "this payload into that shape before forwarding it on.",
+  },
+];
+
 function formatDateTime(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("en-US", {
@@ -83,14 +128,24 @@ function CreateWebhookModal({
   onCreated: (webhook: WebhookItem & { secret: string }) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [recipeId, setRecipeId] = useState<string>(WEBHOOK_RECIPES[0].id);
   const [url, setUrl] = useState("");
   const [events, setEvents] = useState<string[]>(["content.published"]);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const recipe = WEBHOOK_RECIPES.find((r) => r.id === recipeId) ?? WEBHOOK_RECIPES[0];
+
+  function selectRecipe(id: string) {
+    setRecipeId(id);
+    const next = WEBHOOK_RECIPES.find((r) => r.id === id);
+    if (next) setEvents(next.defaultEvents);
+  }
+
   function openModal() {
     setUrl("");
-    setEvents(["content.published"]);
+    setRecipeId(WEBHOOK_RECIPES[0].id);
+    setEvents(WEBHOOK_RECIPES[0].defaultEvents);
     setError(null);
     setOpen(true);
   }
@@ -145,6 +200,31 @@ function CreateWebhookModal({
             </div>
 
             <div className="mt-6 flex flex-col gap-4">
+              <div>
+                <span className="text-sm font-medium text-[#f2f3fb]">Recipe</span>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {WEBHOOK_RECIPES.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => selectRecipe(r.id)}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                        r.id === recipeId
+                          ? "bg-white/[0.08] text-[#f2f3fb]"
+                          : "surface-inset text-[#7680a3] hover:text-[#b8bfd8]"
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+                {recipe.id !== "custom" && (
+                  <p className="surface-inset mt-2 rounded-lg p-3 text-xs leading-5 text-[#7680a3]">
+                    {recipe.note}
+                  </p>
+                )}
+              </div>
+
               <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-[#f2f3fb]">Endpoint URL</span>
                 <input
@@ -489,6 +569,38 @@ export default function WebhooksTab({
           </div>
           <CreateWebhookModal projectId={projectId} onCreated={handleCreated} />
         </div>
+
+        <details className="surface-inset mt-5 rounded-lg p-4 text-xs leading-5 text-[#7680a3]">
+          <summary className="cursor-pointer select-none font-medium text-[#b8bfd8]">
+            Payload shape &amp; recipes (Slack, Teams, custom)
+          </summary>
+          <p className="mt-3">
+            Every delivery is a POST with a JSON body and two headers, regardless of which recipe you
+            picked when creating the webhook:
+          </p>
+          <pre className="surface-standard mt-2 overflow-x-auto rounded-lg p-3 font-mono-code text-[11px] text-[#b8bfd8]">
+{`POST <your URL>
+x-veroxm-event: content.published
+x-veroxm-signature: <hex HMAC-SHA256 of the body, using your webhook's secret>
+
+{
+  "event": "content.published",
+  "data": { "projectId": 1, "contentId": 42, "collectionId": 3 },
+  "sentAt": "2026-01-01T00:00:00.000Z"
+}`}
+          </pre>
+          <p className="mt-3">
+            Verify authenticity by recomputing that HMAC over the raw request body with your webhook&apos;s
+            secret (shown once, at creation) and comparing it to <code className="font-mono-code">x-veroxm-signature</code>{" "}
+            — never trust the payload alone. The <strong className="text-[#b8bfd8]">Slack</strong> and{" "}
+            <strong className="text-[#b8bfd8]">Microsoft Teams</strong> recipes above set sensible default
+            events for those destinations, but both services expect their own payload shape (Slack&apos;s{" "}
+            <code className="font-mono-code">{`{"text": "..."}`}</code>, Teams&apos; Adaptive Cards) — route
+            through a small relay (a Zapier/Make &quot;Catch Hook&quot; step, or a few lines of code) that
+            reformats this JSON before forwarding it on. That relay is the only piece VeroXM doesn&apos;t ship
+            for you; everything above it (signing, retries, the delivery log) is built in.
+          </p>
+        </details>
 
         {secret && (
           <div className="mt-6">

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ReadCacheService } from '../read-cache/read-cache.service.js';
 
 interface FieldRow {
   id: number;
@@ -75,7 +76,13 @@ function union(a: Set<number>, b: Set<number>): Set<number> {
 
 @Injectable()
 export class PublicContentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.1 -- cache-aside
+    // read path; see list()/getById() below and
+    // ReadCacheInvalidationListener for the other half.
+    private readonly cache: ReadCacheService,
+  ) {}
 
   private async loadCollection(projectId: number, slug: string) {
     const collection = await this.prisma.collection.findFirst({
@@ -412,6 +419,16 @@ export class PublicContentService {
 
   async list(projectId: number, slug: string, options: ListOptions) {
     const collection = await this.loadCollection(projectId, slug);
+
+    // Cache-aside: a hit skips every query below entirely (universe scan,
+    // where/whereRelation resolution, the actual findMany). Keyed on the
+    // full, order-normalized `options` object, so two requests are only
+    // ever considered "the same query" if every filter/sort/paging
+    // parameter actually matches -- see ReadCacheService.listKey.
+    const cacheKey = ReadCacheService.listKey(projectId, collection.id, options);
+    const cached = await this.cache.get<unknown>(cacheKey);
+    if (cached !== undefined) return cached;
+
     const fields = collection.fields as unknown as FieldRow[];
     const fieldsByName = new Map(fields.map((f) => [f.name, f]));
 
@@ -449,7 +466,9 @@ export class PublicContentService {
     };
 
     if (options.count) {
-      return this.prisma.content.count({ where });
+      const total = await this.prisma.content.count({ where });
+      await this.cache.set(cacheKey, total);
+      return total;
     }
 
     if (options.offset !== undefined && options.limit === undefined) {
@@ -505,14 +524,24 @@ export class PublicContentService {
     );
 
     if (options.first) {
+      // A miss (nothing matched) is NOT cached -- newly published content
+      // matching an existing `first` query should show up as soon as it
+      // exists, not wait out the TTL of a previously-cached "not found".
       if (!shaped.length) throw new NotFoundException({ error: 'Not found!' });
+      await this.cache.set(cacheKey, shaped[0]);
       return shaped[0];
     }
+    await this.cache.set(cacheKey, shaped);
     return shaped;
   }
 
   async getById(projectId: number, slug: string, id: number, timestamps: boolean) {
     const collection = await this.loadCollection(projectId, slug);
+
+    const cacheKey = ReadCacheService.byIdKey(projectId, collection.id, id, timestamps);
+    const cached = await this.cache.get<unknown>(cacheKey);
+    if (cached !== undefined) return cached;
+
     const fields = collection.fields as unknown as FieldRow[];
 
     const content = await this.prisma.content.findFirst({
@@ -521,6 +550,8 @@ export class PublicContentService {
     });
     if (!content) throw new NotFoundException({ error: 'Not found!' });
 
-    return this.shapeContent(content, content.meta, fields, timestamps);
+    const shaped = await this.shapeContent(content, content.meta, fields, timestamps);
+    await this.cache.set(cacheKey, shaped);
+    return shaped;
   }
 }

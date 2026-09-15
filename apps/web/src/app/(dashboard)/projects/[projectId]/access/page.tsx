@@ -9,15 +9,18 @@ import ApiAnalyticsTab, { type AnalyticsSub } from "./ApiAnalyticsTab";
 import ApiExplorerTab from "./ApiExplorerTab";
 import SdkDocsTab from "./SdkDocsTab";
 import WebhooksTab, { type WebhookItem } from "./WebhooksTab";
+import IntegrationsTab from "./IntegrationsTab";
 import {
   getAnalyticsEndpoints,
   getAnalyticsIps,
   getAnalyticsLogs,
   getAnalyticsSummary,
   getAnalyticsTimeseries,
+  getCdnPurgeConfig,
   getCollectionsWithFields,
   getWebhooks,
   type AnalyticsRange,
+  type CdnPurgeConfigItem,
 } from "./actions";
 
 async function getTokens(projectId: string, apiToken: string): Promise<ApiTokenItem[]> {
@@ -46,7 +49,7 @@ async function getApiUsers(projectId: string, apiToken: string): Promise<ApiAuth
   return res.json();
 }
 
-const VALID_TABS: DeveloperTab[] = ["keys", "auth", "webhooks", "analytics", "explorer", "docs"];
+const VALID_TABS: DeveloperTab[] = ["keys", "auth", "webhooks", "integrations", "analytics", "explorer", "docs"];
 const VALID_RANGES: AnalyticsRange[] = ["1h", "24h", "7d", "30d"];
 const VALID_SUBS: AnalyticsSub[] = ["overview", "logs", "ips"];
 
@@ -89,6 +92,9 @@ export default async function ProjectAccessPage({
     activeTab === "auth" && session.apiToken ? await getApiUsers(projectId, session.apiToken) : [];
 
   const webhooks: WebhookItem[] = activeTab === "webhooks" ? await getWebhooks(projectId) : [];
+
+  const cdnPurgeConfig: CdnPurgeConfigItem | null =
+    activeTab === "integrations" ? await getCdnPurgeConfig(projectId) : null;
 
   // NEXTAUTH_URL is this deployment's own public origin — reachable through
   // the same gateway that serves the app itself (docker-compose sets it to
@@ -181,6 +187,10 @@ export default async function ProjectAccessPage({
         )}
 
         {activeTab === "webhooks" && <WebhooksTab projectId={projectId} initialWebhooks={webhooks} />}
+
+        {activeTab === "integrations" && (
+          <IntegrationsTab projectId={projectId} initialConfig={cdnPurgeConfig} />
+        )}
 
         {activeTab === "analytics" && summary && (
           <ApiAnalyticsTab

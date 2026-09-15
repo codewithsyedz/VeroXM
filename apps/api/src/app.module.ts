@@ -22,6 +22,8 @@ import { CustomRolesModule } from './custom-roles/custom-roles.module.js';
 import { TenantsModule } from './tenants/tenants.module.js';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { JobsModule } from './jobs/jobs.module.js';
+import { ReadCacheModule } from './read-cache/read-cache.module.js';
+import { CdnPurgeModule } from './cdn-purge/cdn-purge.module.js';
 import { WebhooksModule } from './webhooks/webhooks.module.js';
 
 @Module({
@@ -38,6 +40,10 @@ import { WebhooksModule } from './webhooks/webhooks.module.js';
     // far only) consumer is WebhooksModule; see
     // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.3.
     JobsModule,
+    // Global (ReadCacheModule is @Global()) -- docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md
+    // §4.1. Depends on JobsModule only in the sense that both share the
+    // same Redis instance/REDIS_URL, not on anything JobsModule provides.
+    ReadCacheModule,
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -58,6 +64,7 @@ import { WebhooksModule } from './webhooks/webhooks.module.js';
     CustomRolesModule,
     TenantsModule,
     WebhooksModule,
+    CdnPurgeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

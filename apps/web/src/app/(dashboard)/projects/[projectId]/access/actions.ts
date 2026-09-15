@@ -371,3 +371,36 @@ export async function getCollectionsWithFields(projectId: string): Promise<DocCo
 
   return detailed;
 }
+
+// --- CDN purge (§4.1 reference integration) --------------------------------
+// docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.1. One row per project,
+// not a list like Webhooks -- get()/upsert() rather than a full CRUD set.
+
+export interface CdnPurgeConfigItem {
+  provider: string;
+  zoneId: string;
+  enabled: boolean;
+  hasApiToken: boolean;
+  updatedAt: string | null;
+}
+
+export async function getCdnPurgeConfig(projectId: string): Promise<CdnPurgeConfigItem | null> {
+  return apiFetch(`/projects/${projectId}/cdn-purge-config`) as Promise<CdnPurgeConfigItem | null>;
+}
+
+export async function saveCdnPurgeConfig(
+  projectId: string,
+  input: { provider: string; zoneId: string; apiToken?: string; enabled: boolean },
+): Promise<CdnPurgeConfigItem> {
+  const config = await apiFetch(`/projects/${projectId}/cdn-purge-config`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+  revalidatePath(`/projects/${projectId}/access`);
+  return config as CdnPurgeConfigItem;
+}
+
+export async function deleteCdnPurgeConfig(projectId: string): Promise<void> {
+  await apiFetch(`/projects/${projectId}/cdn-purge-config`, { method: "DELETE" });
+  revalidatePath(`/projects/${projectId}/access`);
+}

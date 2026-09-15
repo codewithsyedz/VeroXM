@@ -101,6 +101,7 @@ model Project {
   media         Media[]
   apiUsers      ProjectApiUser[]
   webhooks      Webhook[]
+  cdnPurgeConfig CdnPurgeConfig?
 
   @@map("projects")
 }
@@ -464,6 +465,38 @@ model WebhookDelivery {
   webhook        Webhook   @relation(fields: [webhookId], references: [id])
 
   @@map("webhook_deliveries")
+}
+
+// docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §4.1 -- the "reference
+// integration proving the pattern end-to-end" for the read-cache
+// invalidation work: a project can point at a real CDN zone and have it
+// purged automatically on content.published/updated/deleted, the same
+// events the cache invalidation listener and the webhook engine both
+// already key off of. One row per project (not a list, unlike Webhook) --
+// a project has at most one CDN in front of it. `apiToken` is stored
+// plaintext for this first cut, same tradeoff already flagged for a few
+// other things in this codebase's Phase-2/3 notes: acceptable for a
+// dev/demo system, and the plan's own §8 explicitly calls out that a
+// security review is owed before anything here fronts a real customer's
+// traffic or credentials -- encryption-at-rest for this column is exactly
+// that class of follow-up, not an oversight.
+model CdnPurgeConfig {
+  id        Int       @id @default(autoincrement())
+  projectId Int       @unique @map("project_id")
+  // Only "cloudflare" is actually implemented (CdnPurgeProcessor) --
+  // column is a plain string rather than a Prisma enum so a future
+  // "fastly" (the plan's other named example) is a data value, not a
+  // migration.
+  provider  String    @db.VarChar(32)
+  zoneId    String    @map("zone_id") @db.VarChar(128)
+  apiToken  String    @map("api_token") @db.VarChar(512)
+  enabled   Boolean   @default(true)
+  createdAt DateTime? @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  project   Project   @relation(fields: [projectId], references: [id])
+
+  @@map("cdn_purge_configs")
 }
 
 
