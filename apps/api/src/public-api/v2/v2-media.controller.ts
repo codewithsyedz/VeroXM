@@ -16,6 +16,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MediaService } from '../../media/media.service.js';
 import { V2TokenGuard } from '../v2-token.guard.js';
+import { RateLimitGuard } from '../rate-limit.guard.js';
 import { RequireAbility } from '../require-ability.decorator.js';
 
 const MAX_FILE_SIZE_BYTES = Number(process.env.MAX_FILE_SIZE_MB ?? 20) * 1024 * 1024;
@@ -39,7 +40,7 @@ interface TokenRequest {
 // already carries for content, rather than inventing a media-specific
 // permission -- a token's abilities describe what it can do to this
 // project's public API as a whole.
-@UseGuards(V2TokenGuard)
+@UseGuards(V2TokenGuard, RateLimitGuard)
 @Controller('public/v2/projects/:uuid/media')
 export class V2MediaController {
   constructor(private readonly mediaService: MediaService) {}

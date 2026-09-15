@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   decodeFieldValue,
@@ -19,7 +20,15 @@ import {
 // get backwards, so it's called out here and in docs/PHASE-5-NOTES.md.
 @Injectable()
 export class PublicContentWriteService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.1 -- same event
+    // names/shape as ContentService's dashboard-side write path (see that
+    // file's own comments), so a webhook subscriber sees one consistent
+    // set of events regardless of whether the change came from the
+    // dashboard or a third party calling this API directly.
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   private async loadCollection(projectId: number, slug: string) {
     const collection = await this.prisma.collection.findFirst({
@@ -74,6 +83,18 @@ export class PublicContentWriteService {
       });
     }
 
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.1 -- a Draft
+    // creation (draft: true) emits nothing, matching ContentService's own
+    // create() -- there's no prior state for a brand-new row to "change"
+    // from.
+    if (!draft) {
+      this.eventEmitter.emit('content.published', {
+        projectId,
+        contentId: created.id,
+        collectionId: collection.id,
+      });
+    }
+
     return this.toResource(created.id, projectId, collection.id, fields);
   }
 
@@ -111,6 +132,8 @@ export class PublicContentWriteService {
     );
     if (errors) throw new BadRequestException({ errors });
 
+    const wasPublished = content.publishedAt !== null;
+
     await this.prisma.content.update({
       where: { id: contentId },
       data: {
@@ -124,6 +147,16 @@ export class PublicContentWriteService {
         publishedAt: draft ? null : new Date(),
       },
     });
+
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.1 -- a genuine
+    // Draft-to-Published transition emits content.published; anything else
+    // that reaches this point successfully (a field edit, a republish, an
+    // explicit re-draft) emits content.updated.
+    if (!wasPublished && !draft) {
+      this.eventEmitter.emit('content.published', { projectId, contentId, collectionId: collection.id });
+    } else {
+      this.eventEmitter.emit('content.updated', { projectId, contentId, collectionId: collection.id });
+    }
 
     const existing = await this.prisma.contentMeta.findMany({ where: { contentId } });
     const existingByName = new Map<string, { id: number; value: string | null }>(
@@ -157,6 +190,9 @@ export class PublicContentWriteService {
       this.prisma.contentMeta.deleteMany({ where: { contentId } }),
       this.prisma.content.delete({ where: { id: contentId } }),
     ]);
+
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.1
+    this.eventEmitter.emit('content.deleted', { projectId, contentId, collectionId: collection.id });
   }
 
   // A lighter version of PublicContentService.shapeContent() — write

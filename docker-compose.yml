@@ -46,6 +46,7 @@ services:
     init: true
     depends_on:
       - db
+      - redis
     env_file:
       # Your existing local secrets (API_JWT_SECRET, media/S3 config, etc.)
       # — copy apps/api/.env.example to apps/api/.env first if you haven't.
@@ -69,6 +70,9 @@ services:
       # api`) rather than relying on watch-mode or a plain restart.
       TSC_WATCHFILE: DynamicPriorityPolling
       TSC_WATCHDIRECTORY: DynamicPriorityPolling
+      # Plan §3.3: BullMQ queue connection -- container-network hostname,
+      # not localhost.
+      REDIS_URL: redis://redis:6379
     volumes:
       - .:/app
       # Shadows the bind mount above at just this path, so each container
@@ -177,6 +181,20 @@ services:
     # blocker.
     ports:
       - "8081:8080"
+    networks:
+      - internal
+
+  # --- Advanced use-cases plan §3.3: BullMQ-backed background job queue
+  # (webhook delivery retries to start, more consumers later). Same
+  # isolation convention as `db`/`keycloak-db`: no `ports:` mapping, only
+  # reachable from `api` over the internal network. Deliberately no named
+  # volume -- this is a job queue, not a system of record; losing queued
+  # jobs on a dev-machine restart is an acceptable tradeoff for not having
+  # to think about redis persistence/AOF config in local dev. Revisit if
+  # we ever want jobs to survive a `docker compose down`.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
     networks:
       - internal
 

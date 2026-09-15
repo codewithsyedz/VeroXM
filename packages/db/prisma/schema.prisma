@@ -100,6 +100,7 @@ model Project {
   meta          ContentMeta[]
   media         Media[]
   apiUsers      ProjectApiUser[]
+  webhooks      Webhook[]
 
   @@map("projects")
 }
@@ -411,6 +412,58 @@ model PersonalAccessToken {
   updatedAt     DateTime? @updatedAt @map("updated_at")
 
   @@map("personal_access_tokens")
+}
+
+// docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.1 -- the webhook/event
+// engine, first P0 item of the advanced-use-cases plan. Same "known,
+// accepted drift" pattern as ContentApprovalRequest.projectId: the raw
+// migration (packages/db/sql/0011_create_webhooks.sql) declares
+// project_id as a plain INT UNSIGNED with NO real foreign-key constraint
+// against `projects` (that table's exact column type is uncertain enough
+// to have hit MySQL error 3780 before -- see 0007's own comment), but the
+// relation is still modeled here for query convenience; enforcement is
+// application-layer only, exactly like ContentApprovalRequest already
+// does.
+model Webhook {
+  id               Int       @id @default(autoincrement())
+  projectId        Int       @map("project_id")
+  url              String    @db.VarChar(2048)
+  // HMAC-SHA256 signing secret for this webhook's deliveries -- generated
+  // once at creation (WebhooksService.create), returned to the caller
+  // exactly once (mirrors PersonalAccessToken's plainTextToken), never
+  // re-displayed after.
+  secret           String    @db.VarChar(64)
+  // JSON array of WebhookEventType strings, e.g. ["content.published"] --
+  // same encode-as-JSON-text convention as PersonalAccessToken.abilities.
+  subscribedEvents String    @map("subscribed_events") @db.Text
+  enabled          Boolean   @default(true)
+  createdAt        DateTime? @default(now()) @map("created_at")
+  updatedAt        DateTime? @updatedAt @map("updated_at")
+
+  project          Project           @relation(fields: [projectId], references: [id])
+  deliveries       WebhookDelivery[]
+
+  @@map("webhooks")
+}
+
+// Append-only delivery log -- one row per delivery ATTEMPT, not per
+// webhook, so a future retry (docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md
+// §3.3's queue item) shows up as additional rows rather than overwriting
+// the outcome of the last attempt.
+model WebhookDelivery {
+  id             Int       @id @default(autoincrement())
+  webhookId      Int       @map("webhook_id")
+  event          String    @db.VarChar(64)
+  payload        String    @db.LongText
+  responseStatus Int?      @map("response_status")
+  attempt        Int       @default(1)
+  deliveredAt    DateTime? @map("delivered_at")
+  failedAt       DateTime? @map("failed_at")
+  createdAt      DateTime? @default(now()) @map("created_at")
+
+  webhook        Webhook   @relation(fields: [webhookId], references: [id])
+
+  @@map("webhook_deliveries")
 }
 
 

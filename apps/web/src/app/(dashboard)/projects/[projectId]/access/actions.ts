@@ -285,6 +285,77 @@ export interface DocCollection {
   }>;
 }
 
+// --- Webhooks -------------------------------------------------------------
+// docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.1. Same apiFetch proxy
+// pattern as everything else on this page -- the dashboard session's own
+// JWT authorizes the call server-side, never a project token.
+
+export interface WebhookItem {
+  id: number;
+  url: string;
+  subscribedEvents: string[];
+  enabled: boolean;
+  createdAt: string | null;
+}
+
+export interface WebhookDeliveryItem {
+  id: number;
+  event: string;
+  responseStatus: number | null;
+  attempt: number;
+  deliveredAt: string | null;
+  failedAt: string | null;
+  createdAt: string | null;
+}
+
+export async function getWebhooks(projectId: string): Promise<WebhookItem[]> {
+  return apiFetch(`/projects/${projectId}/webhooks`) as Promise<WebhookItem[]>;
+}
+
+export async function createWebhook(
+  projectId: string,
+  url: string,
+  subscribedEvents: string[],
+): Promise<WebhookItem & { secret: string }> {
+  const webhook = await apiFetch(`/projects/${projectId}/webhooks`, {
+    method: "POST",
+    body: JSON.stringify({ url, subscribedEvents }),
+  });
+  revalidatePath(`/projects/${projectId}/access`);
+  return webhook as WebhookItem & { secret: string };
+}
+
+export async function updateWebhook(
+  projectId: string,
+  webhookId: number,
+  patch: { url?: string; subscribedEvents?: string[]; enabled?: boolean },
+): Promise<WebhookItem> {
+  const webhook = await apiFetch(`/projects/${projectId}/webhooks/${webhookId}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  revalidatePath(`/projects/${projectId}/access`);
+  return webhook as WebhookItem;
+}
+
+export async function deleteWebhook(projectId: string, webhookId: number): Promise<void> {
+  await apiFetch(`/projects/${projectId}/webhooks/${webhookId}`, { method: "DELETE" });
+  revalidatePath(`/projects/${projectId}/access`);
+}
+
+export async function sendTestWebhook(projectId: string, webhookId: number): Promise<void> {
+  await apiFetch(`/projects/${projectId}/webhooks/${webhookId}/test`, { method: "POST" });
+}
+
+export async function getWebhookDeliveries(
+  projectId: string,
+  webhookId: number,
+): Promise<WebhookDeliveryItem[]> {
+  return apiFetch(
+    `/projects/${projectId}/webhooks/${webhookId}/deliveries`,
+  ) as Promise<WebhookDeliveryItem[]>;
+}
+
 export async function getCollectionsWithFields(projectId: string): Promise<DocCollection[]> {
   const summaries = (await apiFetch(`/projects/${projectId}/collections`)) as Array<{
     id: number;

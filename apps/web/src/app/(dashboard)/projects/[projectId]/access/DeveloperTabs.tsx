@@ -1,11 +1,19 @@
 import type { LucideIcon } from "lucide-react";
-import { BookOpen, FlaskConical, Fingerprint, KeyRound, LineChart } from "lucide-react";
+import {
+  BookOpen,
+  FlaskConical,
+  Fingerprint,
+  KeyRound,
+  LineChart,
+  Webhook as WebhookIcon,
+} from "lucide-react";
 
-export type DeveloperTab = "keys" | "auth" | "analytics" | "explorer" | "docs";
+export type DeveloperTab = "keys" | "auth" | "analytics" | "explorer" | "docs" | "webhooks";
 
 const TABS: Array<{ id: DeveloperTab; label: string; icon: LucideIcon }> = [
   { id: "keys", label: "API Keys", icon: KeyRound },
   { id: "auth", label: "Authentication", icon: Fingerprint },
+  { id: "webhooks", label: "Webhooks", icon: WebhookIcon },
   { id: "analytics", label: "API Analytics", icon: LineChart },
   { id: "explorer", label: "API Explorer", icon: FlaskConical },
   { id: "docs", label: "SDK Docs", icon: BookOpen },

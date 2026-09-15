@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { LegacyTokenGuard } from '../legacy-token.guard.js';
+import { RateLimitGuard } from '../rate-limit.guard.js';
 import { RequireAbility } from '../require-ability.decorator.js';
 import { PublicContentService, type ListOptions } from '../public-content.service.js';
 import { PublicContentWriteService } from '../public-content-write.service.js';
@@ -27,7 +28,7 @@ interface TokenRequest {
 // `/public/v1/...` internally; infra/nginx.conf.sample rewrites the
 // external `/api/...` path to this prefix before proxying here, so nothing
 // about the external contract changes during the strangler-fig cutover.
-@UseGuards(LegacyTokenGuard)
+@UseGuards(LegacyTokenGuard, RateLimitGuard)
 @Controller('public/v1/:uuid')
 export class V1ContentController {
   constructor(

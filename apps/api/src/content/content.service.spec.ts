@@ -91,7 +91,11 @@ function makeService(requests: unknown[], satisfies: (kind: string, scope: unkno
     getUserRoles: vi.fn().mockResolvedValue({ fake: 'roles' }),
     satisfiesRoleKind: vi.fn((_roles: unknown, kind: string, scope: unknown) => satisfies(kind, scope)),
   };
-  const service = new ContentService(prisma as any, rolesService as any);
+  // EventEmitter2 stub -- these tests exercise resolvePublishIntent's
+  // approval-gating logic, not event emission, so a no-op emit() is all
+  // ContentService's constructor needs to be satisfied.
+  const eventEmitter = { emit: vi.fn() };
+  const service = new ContentService(prisma as any, rolesService as any, eventEmitter as any);
   return { service, prisma, rolesService };
 }
 
@@ -375,7 +379,11 @@ function makeApprovalActionService(opts: {
     satisfiesRoleKind: vi.fn().mockReturnValue(opts.satisfies),
   };
 
-  const service = new ContentService(prisma as any, rolesService as any);
+  // EventEmitter2 stub -- these tests exercise resolvePublishIntent's
+  // approval-gating logic, not event emission, so a no-op emit() is all
+  // ContentService's constructor needs to be satisfied.
+  const eventEmitter = { emit: vi.fn() };
+  const service = new ContentService(prisma as any, rolesService as any, eventEmitter as any);
   return { service, prisma, rolesService };
 }
 
@@ -554,7 +562,11 @@ function makeRestoreRemoveService(opts: {
     $transaction: vi.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
   const rolesService = { getUserRoles: vi.fn(), satisfiesRoleKind: vi.fn() };
-  const service = new ContentService(prisma as any, rolesService as any);
+  // EventEmitter2 stub -- these tests exercise resolvePublishIntent's
+  // approval-gating logic, not event emission, so a no-op emit() is all
+  // ContentService's constructor needs to be satisfied.
+  const eventEmitter = { emit: vi.fn() };
+  const service = new ContentService(prisma as any, rolesService as any, eventEmitter as any);
   return { service, prisma };
 }
 
@@ -676,7 +688,11 @@ function makeApprovalStatusService(opts: {
     getUserRoles: vi.fn().mockResolvedValue({ fake: 'roles' }),
     satisfiesRoleKind: vi.fn().mockReturnValue(opts.satisfies),
   };
-  const service = new ContentService(prisma as any, rolesService as any);
+  // EventEmitter2 stub -- these tests exercise resolvePublishIntent's
+  // approval-gating logic, not event emission, so a no-op emit() is all
+  // ContentService's constructor needs to be satisfied.
+  const eventEmitter = { emit: vi.fn() };
+  const service = new ContentService(prisma as any, rolesService as any, eventEmitter as any);
   return { service, prisma, rolesService };
 }
 

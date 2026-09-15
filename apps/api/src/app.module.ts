@@ -20,9 +20,24 @@ import { ApprovalWorkflowsModule } from './approval-workflows/approval-workflows
 import { ImpersonationModule } from './impersonation/impersonation.module.js';
 import { CustomRolesModule } from './custom-roles/custom-roles.module.js';
 import { TenantsModule } from './tenants/tenants.module.js';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { JobsModule } from './jobs/jobs.module.js';
+import { WebhooksModule } from './webhooks/webhooks.module.js';
 
 @Module({
   imports: [
+    // Global on purpose (forRoot(), no options needed yet) -- registered
+    // once here so any module can inject EventEmitter2 or use @OnEvent
+    // without importing this module again itself. First (and so far
+    // only) consumer is WebhooksModule; see
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.1.
+    EventEmitterModule.forRoot(),
+    // Global (JobsModule is @Global()) -- registers the shared BullMQ/Redis
+    // connection once here so feature modules only need
+    // BullModule.registerQueue() for the queue(s) they own. First (and so
+    // far only) consumer is WebhooksModule; see
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.3.
+    JobsModule,
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -42,6 +57,7 @@ import { TenantsModule } from './tenants/tenants.module.js';
     ImpersonationModule,
     CustomRolesModule,
     TenantsModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -8,6 +8,7 @@ import DeveloperTabs, { DEFAULT_TAB, type DeveloperTab } from "./DeveloperTabs";
 import ApiAnalyticsTab, { type AnalyticsSub } from "./ApiAnalyticsTab";
 import ApiExplorerTab from "./ApiExplorerTab";
 import SdkDocsTab from "./SdkDocsTab";
+import WebhooksTab, { type WebhookItem } from "./WebhooksTab";
 import {
   getAnalyticsEndpoints,
   getAnalyticsIps,
@@ -15,6 +16,7 @@ import {
   getAnalyticsSummary,
   getAnalyticsTimeseries,
   getCollectionsWithFields,
+  getWebhooks,
   type AnalyticsRange,
 } from "./actions";
 
@@ -44,7 +46,7 @@ async function getApiUsers(projectId: string, apiToken: string): Promise<ApiAuth
   return res.json();
 }
 
-const VALID_TABS: DeveloperTab[] = ["keys", "auth", "analytics", "explorer", "docs"];
+const VALID_TABS: DeveloperTab[] = ["keys", "auth", "webhooks", "analytics", "explorer", "docs"];
 const VALID_RANGES: AnalyticsRange[] = ["1h", "24h", "7d", "30d"];
 const VALID_SUBS: AnalyticsSub[] = ["overview", "logs", "ips"];
 
@@ -85,6 +87,8 @@ export default async function ProjectAccessPage({
 
   const apiUsers =
     activeTab === "auth" && session.apiToken ? await getApiUsers(projectId, session.apiToken) : [];
+
+  const webhooks: WebhookItem[] = activeTab === "webhooks" ? await getWebhooks(projectId) : [];
 
   // NEXTAUTH_URL is this deployment's own public origin — reachable through
   // the same gateway that serves the app itself (docker-compose sets it to
@@ -175,6 +179,8 @@ export default async function ProjectAccessPage({
         {activeTab === "auth" && (
           <ApiAuthUsersTab projectId={projectId} endpoint={endpoint} initialApiUsers={apiUsers} />
         )}
+
+        {activeTab === "webhooks" && <WebhooksTab projectId={projectId} initialWebhooks={webhooks} />}
 
         {activeTab === "analytics" && summary && (
           <ApiAnalyticsTab

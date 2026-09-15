@@ -12,6 +12,7 @@ import { V2ContentController } from './v2/v2-content.controller.js';
 import { V2MediaController } from './v2/v2-media.controller.js';
 import { ProjectApiAuthController } from './project-api-auth.controller.js';
 import { ApiRequestLogMiddleware } from './api-request-log.middleware.js';
+import { RateLimitGuard } from './rate-limit.guard.js';
 
 @Module({
   // AuthModule -- exports JwtService, needed both by PublicApiAuthService
@@ -32,6 +33,11 @@ import { ApiRequestLogMiddleware } from './api-request-log.middleware.js';
     PublicContentService,
     PublicContentWriteService,
     ApiRequestLogMiddleware,
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.2 -- registered
+    // here (not just referenced by class in @UseGuards) so all three
+    // public-API controllers share the exact same singleton instance, and
+    // therefore the same in-memory rate-limit counters per token/project.
+    RateLimitGuard,
   ],
 })
 export class PublicApiModule implements NestModule {

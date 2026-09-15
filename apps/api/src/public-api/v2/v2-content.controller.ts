@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { V2TokenGuard } from '../v2-token.guard.js';
+import { RateLimitGuard } from '../rate-limit.guard.js';
 import { RequireAbility } from '../require-ability.decorator.js';
 import { PublicContentService, type ListOptions } from '../public-content.service.js';
 import { PublicContentWriteService } from '../public-content-write.service.js';
@@ -27,7 +28,7 @@ interface TokenRequest {
 // `/content/search` for the where[]/whereRelation/sort DSL, since that's
 // far easier for a client to construct correctly as a JSON body than as
 // bracketed query-string params. See docs/PHASE-5-NOTES.md.
-@UseGuards(V2TokenGuard)
+@UseGuards(V2TokenGuard, RateLimitGuard)
 @Controller('public/v2/projects/:uuid/collections/:slug/content')
 export class V2ContentController {
   constructor(

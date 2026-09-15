@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RolesService } from '../authz/roles.service.js';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 // Field-level encode/decode, emptiness, and validation are shared with the
 // public API's write endpoints (see content-field-codec.ts's own doc
 // comment) — this used to keep its own copy of all of it, which is exactly
@@ -60,6 +61,12 @@ export class ContentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rolesService: RolesService,
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.1 -- fires the
+    // content.published/content.updated/content.deleted/approval.requested
+    // events WebhooksService listens for. Optional-by-injection-token isn't
+    // needed: EventEmitterModule.forRoot() in AppModule is global, so
+    // EventEmitter2 is always available here.
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private async loadCollectionOrThrow(projectId: number, collectionId: number) {
@@ -454,7 +461,7 @@ export class ContentService {
     }
 
     if (input.published) {
-      const { publishedAt, publishedBy } = await this.resolvePublishIntent(
+      const { publishedAt, publishedBy, pendingApproval } = await this.resolvePublishIntent(
         projectId,
         created.id,
         userId,
@@ -465,6 +472,15 @@ export class ContentService {
         where: { id: created.id },
         data: { publishedAt, publishedBy },
       });
+
+      // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.1 -- a brand-new
+      // Draft that was never published emits nothing (no prior state to
+      // "change" yet); only an actual publish-on-create transition does.
+      if (pendingApproval) {
+        this.eventEmitter.emit('approval.requested', { projectId, contentId: created.id, collectionId });
+      } else if (publishedAt) {
+        this.eventEmitter.emit('content.published', { projectId, contentId: created.id, collectionId });
+      }
     }
 
     return this.findOne(projectId, collectionId, created.id);
@@ -492,12 +508,13 @@ export class ContentService {
     // §6 gating applies here too, not just to the dedicated /publish
     // route — the form's "Published" checkbox is another path to the
     // same intent, and both need to go through the same workflow check.
-    const { publishedAt, publishedBy } = await this.resolvePublishIntent(
+    const wasPublished = content.publishedAt !== null;
+    const { publishedAt, publishedBy, pendingApproval } = await this.resolvePublishIntent(
       projectId,
       contentId,
       userId,
       !!input.published,
-      content.publishedAt !== null,
+      wasPublished,
     );
 
     await this.prisma.content.update({
@@ -509,6 +526,18 @@ export class ContentService {
         publishedBy,
       },
     });
+
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.1 -- exactly one
+    // of these fires: a fresh approval submission, a genuine Draft-to-
+    // Published transition, or (everything else -- a plain field edit, or
+    // a republish of already-published content) a generic update.
+    if (pendingApproval) {
+      this.eventEmitter.emit('approval.requested', { projectId, contentId, collectionId });
+    } else if (!wasPublished && publishedAt) {
+      this.eventEmitter.emit('content.published', { projectId, contentId, collectionId });
+    } else {
+      this.eventEmitter.emit('content.updated', { projectId, contentId, collectionId });
+    }
 
     const existingByName = new Map<string, ContentMetaRow>(
       content.meta.map((m: ContentMetaRow) => [m.fieldName, m]),
@@ -539,14 +568,26 @@ export class ContentService {
 
   async publish(projectId: number, collectionId: number, contentId: number, userId: number) {
     const existing = await this.mustExist(projectId, collectionId, contentId);
+    const wasPublished = existing.publishedAt !== null;
     const { publishedAt, publishedBy, pendingApproval } = await this.resolvePublishIntent(
       projectId,
       contentId,
       userId,
       true,
-      existing.publishedAt !== null,
+      wasPublished,
     );
     await this.prisma.content.update({ where: { id: contentId }, data: { publishedAt, publishedBy } });
+
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.1 -- same
+    // three-way split as update() above.
+    if (pendingApproval) {
+      this.eventEmitter.emit('approval.requested', { projectId, contentId, collectionId });
+    } else if (!wasPublished && publishedAt) {
+      this.eventEmitter.emit('content.published', { projectId, contentId, collectionId });
+    } else {
+      this.eventEmitter.emit('content.updated', { projectId, contentId, collectionId });
+    }
+
     return { pendingApproval };
   }
 
@@ -970,6 +1011,8 @@ export class ContentService {
       this.prisma.contentMeta.deleteMany({ where: { contentId } }),
       this.prisma.content.delete({ where: { id: contentId } }),
     ]);
+    // docs/ADVANCED-USE-CASES-IMPLEMENTATION-PLAN.md §3.1
+    this.eventEmitter.emit('content.deleted', { projectId, contentId, collectionId });
   }
 
   private async mustExist(
